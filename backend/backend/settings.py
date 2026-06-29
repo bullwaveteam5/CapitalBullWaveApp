@@ -1,0 +1,244 @@
+from pathlib import Path
+
+from decouple import config
+from datetime import timedelta
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+SECRET_KEY = config('SECRET_KEY', default='django-insecure-dev-key-change-in-production')
+DEBUG = config('DEBUG', default=True, cast=bool)
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,10.0.2.2').split(',')
+if DEBUG:
+    ALLOWED_HOSTS = ['*']
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {'class': 'logging.StreamHandler'},
+    },
+    'loggers': {
+        'bullwave.requests': {
+            'handlers': ['console'],
+            'level': 'INFO',
+        },
+        'bullwave.ai': {
+            'handlers': ['console'],
+            'level': 'INFO',
+        },
+    },
+}
+
+INSTALLED_APPS = [
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+    'rest_framework',
+    'rest_framework_simplejwt',
+    'corsheaders',
+    'accounts',
+    'kyc',
+    'payments',
+    'finance',
+    'stocks.apps.StocksConfig',
+    'engagement',
+    'ai',
+]
+
+MIDDLEWARE = [
+    'django.middleware.security.SecurityMiddleware',
+    'core.middleware.RequestLogMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.common.CommonMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+]
+
+ROOT_URLCONF = 'backend.urls'
+
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'DIRS': [],
+        'APP_DIRS': True,
+        'OPTIONS': {
+            'context_processors': [
+                'django.template.context_processors.request',
+                'django.contrib.auth.context_processors.auth',
+                'django.contrib.messages.context_processors.messages',
+            ],
+        },
+    },
+]
+
+WSGI_APPLICATION = 'backend.wsgi.application'
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': config('DB_NAME', default='bullwave_db'),
+        'USER': config('DB_USER', default='postgres'),
+        'PASSWORD': config('DB_PASSWORD', default='postgres'),
+        'HOST': config('DB_HOST', default='localhost'),
+        'PORT': config('DB_PORT', default='5432'),
+    }
+}
+
+AUTH_USER_MODEL = 'accounts.User'
+
+AUTH_PASSWORD_VALIDATORS = [
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
+]
+
+LANGUAGE_CODE = 'en-us'
+TIME_ZONE = 'Asia/Kolkata'
+USE_I18N = True
+USE_TZ = True
+
+STATIC_URL = 'static/'
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    ),
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 20,
+    'DATETIME_FORMAT': '%Y-%m-%dT%H:%M:%S.%fZ',
+}
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=7),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=30),
+    'ROTATE_REFRESH_TOKENS': True,
+}
+
+CORS_ALLOW_ALL_ORIGINS = DEBUG
+CORS_ALLOWED_ORIGINS = config(
+    'CORS_ALLOWED_ORIGINS',
+    default='http://localhost:3000,http://127.0.0.1:3000',
+    cast=lambda v: [origin.strip() for origin in v.split(',') if origin.strip()],
+)
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'bullwave-cache',
+    }
+}
+
+OTP_EXPIRY_MINUTES = config('OTP_EXPIRY_MINUTES', default=5, cast=int)
+
+# AI assistant — default: Ollama (local, free). See ai/ollama_client.py
+AI_PROVIDER = config('AI_PROVIDER', default='ollama')
+OPENAI_API_KEY = config('OPENAI_API_KEY', default='')
+OPENAI_MODEL = config('OPENAI_MODEL', default='gpt-4o-mini')
+GEMINI_API_KEY = config('GEMINI_API_KEY', default='')
+GEMINI_MODEL = config('GEMINI_MODEL', default='gemini-2.0-flash')
+GROQ_API_KEY = config('GROQ_API_KEY', default='')
+GROQ_MODEL = config('GROQ_MODEL', default='llama-3.1-8b-instant')
+OLLAMA_BASE_URL = config('OLLAMA_BASE_URL', default='http://127.0.0.1:11434')
+OLLAMA_MODEL = config('OLLAMA_MODEL', default='llama3.2:1b')
+OLLAMA_KEEP_ALIVE = config('OLLAMA_KEEP_ALIVE', default='30m')
+OLLAMA_NUM_CTX = config('OLLAMA_NUM_CTX', default=2048, cast=int)
+AI_TEMPERATURE = config('AI_TEMPERATURE', default=0.4, cast=float)
+AI_MAX_TOKENS = config('AI_MAX_TOKENS', default=350, cast=int)
+AI_REQUEST_TIMEOUT = config('AI_REQUEST_TIMEOUT', default=90, cast=int)
+
+# Real-time market data — Kotak Neo (primary) / Finnhub / Yahoo
+KOTAK_NEO_ACCESS_TOKEN = config('KOTAK_NEO_ACCESS_TOKEN', default='')
+KOTAK_NEO_BASE_URL = config('KOTAK_NEO_BASE_URL', default='https://mis.kotaksecurities.com')
+KOTAK_NEO_QUOTE_CACHE_SECONDS = config('KOTAK_NEO_QUOTE_CACHE_SECONDS', default=15, cast=int)
+KOTAK_NEO_UNIVERSE_CACHE_SECONDS = config('KOTAK_NEO_UNIVERSE_CACHE_SECONDS', default=15, cast=int)
+KOTAK_NEO_BATCH_SIZE = config('KOTAK_NEO_BATCH_SIZE', default=50, cast=int)
+MARKET_DATA_PROVIDER = config('MARKET_DATA_PROVIDER', default='auto')  # auto | kotak_neo | finnhub | yahoo
+ALPHA_VANTAGE_API_KEY = config('ALPHA_VANTAGE_API_KEY', default='')
+ALPHA_VANTAGE_REQUEST_DELAY_SECONDS = config('ALPHA_VANTAGE_REQUEST_DELAY_SECONDS', default=12, cast=int)
+ALPHA_VANTAGE_QUOTE_CACHE_SECONDS = config('ALPHA_VANTAGE_QUOTE_CACHE_SECONDS', default=120, cast=int)
+ALPHA_VANTAGE_MAX_QUOTES_PER_REFRESH = config('ALPHA_VANTAGE_MAX_QUOTES_PER_REFRESH', default=5, cast=int)
+FINNHUB_API_KEY = config('FINNHUB_API_KEY', default='')
+MARKET_QUOTE_CACHE_SECONDS = config('MARKET_QUOTE_CACHE_SECONDS', default=30, cast=int)
+MARKET_UNIVERSE_CACHE_SECONDS = config('MARKET_UNIVERSE_CACHE_SECONDS', default=60, cast=int)
+NEWS_CACHE_MINUTES = config('NEWS_CACHE_MINUTES', default=15, cast=int)
+
+# SMS OTP — console (dev), msg91, twilio
+SMS_PROVIDER = config('SMS_PROVIDER', default='console')
+MSG91_AUTH_KEY = config('MSG91_AUTH_KEY', default='')
+MSG91_TEMPLATE_ID = config('MSG91_TEMPLATE_ID', default='')
+TWILIO_ACCOUNT_SID = config('TWILIO_ACCOUNT_SID', default='').strip()
+TWILIO_AUTH_TOKEN = config('TWILIO_AUTH_TOKEN', default='').strip()
+TWILIO_FROM_NUMBER = config('TWILIO_FROM_NUMBER', default='').strip()
+TWILIO_SERVICE_SID = config('TWILIO_SERVICE_SID', default='').strip()
+TWILIO_VERIFY_CHANNEL = config('TWILIO_VERIFY_CHANNEL', default='sms').strip()
+
+# Payments — Razorpay (https://dashboard.razorpay.com)
+RAZORPAY_KEY_ID = config('RAZORPAY_KEY_ID', default='')
+RAZORPAY_KEY_SECRET = config('RAZORPAY_KEY_SECRET', default='')
+RAZORPAY_WEBHOOK_SECRET = config('RAZORPAY_WEBHOOK_SECRET', default='')
+
+# Verification & Payments — Cashfree (credentials from env only)
+CASHFREE_CLIENT_ID = config('CASHFREE_CLIENT_ID', default='')
+CASHFREE_CLIENT_SECRET = config('CASHFREE_CLIENT_SECRET', default='')
+CASHFREE_ENVIRONMENT = config('CASHFREE_ENVIRONMENT', default='')
+CASHFREE_ENV = config('CASHFREE_ENV', default='sandbox')
+CASHFREE_API_VERSION = config('CASHFREE_API_VERSION', default='2022-10-26')
+CASHFREE_PAYMENT_API_VERSION = config('CASHFREE_PAYMENT_API_VERSION', default='2023-08-01')
+CASHFREE_PAYMENTS_BASE_URL = config('CASHFREE_PAYMENTS_BASE_URL', default='')
+CASHFREE_PAYOUTS_BASE_URL = config('CASHFREE_PAYOUTS_BASE_URL', default='')
+CASHFREE_PAYMENT_WEBHOOK_SECRET = config('CASHFREE_PAYMENT_WEBHOOK_SECRET', default='')
+CASHFREE_PAYOUT_WEBHOOK_SECRET = config('CASHFREE_PAYOUT_WEBHOOK_SECRET', default='')
+CASHFREE_WEBHOOK_SECRET = config('CASHFREE_WEBHOOK_SECRET', default='')
+SECURE_ID_BASE_URL = config('SECURE_ID_BASE_URL', default='')
+SECURE_ID_API_KEY = config('SECURE_ID_API_KEY', default='')
+SECURE_ID_API_SECRET = config('SECURE_ID_API_SECRET', default='')
+
+# Compliance
+KYC_AUTO_APPROVE = config('KYC_AUTO_APPROVE', default=False, cast=bool)
+REFERRAL_REWARD_AMOUNT = config('REFERRAL_REWARD_AMOUNT', default=500, cast=int)
+APP_SHARE_URL = config('APP_SHARE_URL', default='https://bullwave.in')
+# Public URL for email action links (approve/reject). Use your deployed API URL or ngrok in dev.
+BACKEND_PUBLIC_URL = config('BACKEND_PUBLIC_URL', default='http://127.0.0.1:8000').strip().rstrip('/')
+
+# Manual KYC admin email — set SMTP credentials in .env for production.
+# If left empty, backend will default to: bullwaveteam5@gmail.com
+ADMIN_KYC_EMAIL = config('ADMIN_KYC_EMAIL', default='')
+EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
+EMAIL_HOST = config('EMAIL_HOST', default='')
+EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='').strip()
+_raw_email_password = config('EMAIL_HOST_PASSWORD', default='').strip()
+# Gmail app passwords are 16 chars; copy-paste often adds spaces or dashes.
+EMAIL_HOST_PASSWORD = _raw_email_password.replace(' ', '').replace('-', '')
+EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@bullwave.app').strip()
+
+# Production email via API key (recommended over Gmail SMTP)
+# Brevo: https://app.brevo.com/settings/keys/api
+# SendGrid: https://app.sendgrid.com/settings/api_keys
+EMAIL_PROVIDER = config('EMAIL_PROVIDER', default='smtp')  # smtp | sendgrid | brevo
+BREVO_API_KEY = config('BREVO_API_KEY', default='').strip()
+BREVO_FROM_EMAIL = config('BREVO_FROM_EMAIL', default='').strip()
+BREVO_FROM_NAME = config('BREVO_FROM_NAME', default='BullWave Capital').strip()
+SENDGRID_API_KEY = config('SENDGRID_API_KEY', default='').strip()
+SENDGRID_FROM_EMAIL = config('SENDGRID_FROM_EMAIL', default='').strip()
+
+# Broker APIs (future — Zerodha Kite / Dhan)
+KITE_API_KEY = config('KITE_API_KEY', default='')
+KITE_API_SECRET = config('KITE_API_SECRET', default='')
+DHAN_CLIENT_ID = config('DHAN_CLIENT_ID', default='')
+DHAN_ACCESS_TOKEN = config('DHAN_ACCESS_TOKEN', default='')

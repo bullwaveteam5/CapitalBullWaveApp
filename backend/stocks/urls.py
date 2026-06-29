@@ -1,0 +1,43 @@
+from django.urls import path
+
+from .views import (
+    DividendsView,
+    MarketLiveView,
+    OptionChainView,
+    PaperTradingOrdersView,
+    PortfolioAnalyticsView,
+    PortfolioHoldingsView,
+    PortfolioOverviewView,
+    PriceAlertsView,
+    PriceAlertDetailView,
+    ScreenerView,
+    SipPlansView,
+    SipPlanDetailView,
+    StockCandlesView,
+    StockNewsView,
+    StockQuoteView,
+    StockSearchView,
+    WatchlistSymbolView,
+    WatchlistView,
+)
+
+urlpatterns = [
+    path('market/live/', MarketLiveView.as_view(), name='market-live'),
+    path('stocks/search/', StockSearchView.as_view(), name='stock-search'),
+    path('stocks/<str:symbol>/quote/', StockQuoteView.as_view(), name='stock-quote'),
+    path('stocks/<str:symbol>/candles/', StockCandlesView.as_view(), name='stock-candles'),
+    path('watchlist/', WatchlistView.as_view(), name='watchlist'),
+    path('watchlist/<str:symbol>/', WatchlistSymbolView.as_view(), name='watchlist-symbol'),
+    path('portfolio/overview/', PortfolioOverviewView.as_view(), name='portfolio-overview'),
+    path('portfolio/holdings/', PortfolioHoldingsView.as_view(), name='portfolio-holdings'),
+    path('portfolio/analytics/', PortfolioAnalyticsView.as_view(), name='portfolio-analytics'),
+    path('news/', StockNewsView.as_view(), name='stock-news'),
+    path('alerts/', PriceAlertsView.as_view(), name='price-alerts'),
+    path('alerts/<uuid:alert_id>/', PriceAlertDetailView.as_view(), name='price-alert-detail'),
+    path('sip/', SipPlansView.as_view(), name='sip-plans'),
+    path('sip/<uuid:plan_id>/', SipPlanDetailView.as_view(), name='sip-plan-detail'),
+    path('options/<str:symbol>/chain/', OptionChainView.as_view(), name='option-chain'),
+    path('paper-trading/orders/', PaperTradingOrdersView.as_view(), name='paper-trading'),
+    path('screener/', ScreenerView.as_view(), name='screener'),
+    path('dividends/', DividendsView.as_view(), name='dividends'),
+]

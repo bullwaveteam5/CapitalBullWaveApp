@@ -1,0 +1,308 @@
+import 'dart:async';
+import 'dart:typed_data';
+
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
+
+import '../../../../core/api/api_config.dart';
+import '../../../../core/api/refresh_providers.dart';
+import '../../../../core/constants/dimensions.dart';
+import '../../../../core/constants/routes.dart';
+import '../../../../core/theme/app_theme_extension.dart';
+import '../../../../core/theme/colors.dart';
+import '../../../../core/widgets/app_text_field.dart';
+import '../../../../core/widgets/custom_dialog.dart';
+import '../../../../core/widgets/primary_button.dart';
+import '../../../kyc/presentation/provider/kyc_flow_provider.dart';
+import '../provider/auth_provider.dart';
+
+class CompleteProfileScreen extends StatefulWidget {
+  const CompleteProfileScreen({super.key});
+
+  @override
+  State<CompleteProfileScreen> createState() => _CompleteProfileScreenState();
+}
+
+class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _nameController;
+  late final TextEditingController _emailController;
+  late final TextEditingController _cityController;
+  late final TextEditingController _referralCodeController;
+
+  Uint8List? _pickedImageBytes;
+  String? _pickedImageName;
+
+  @override
+  void initState() {
+    super.initState();
+    final user = context.read<AuthProvider>().user;
+    _nameController = TextEditingController(text: user?.name ?? '');
+    _emailController = TextEditingController(text: user?.email ?? '');
+    _cityController = TextEditingController(text: user?.city ?? '');
+    _referralCodeController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _cityController.dispose();
+    _referralCodeController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    final picker = ImagePicker();
+    final file = await picker.pickImage(
+      source: source,
+      maxWidth: 1024,
+      maxHeight: 1024,
+      imageQuality: 85,
+    );
+    if (file == null) return;
+    final bytes = await file.readAsBytes();
+    setState(() {
+      _pickedImageBytes = bytes;
+      _pickedImageName = file.name;
+    });
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    final auth = context.read<AuthProvider>();
+
+    if (_pickedImageBytes != null) {
+      final uploaded = await auth.uploadAvatar(_pickedImageBytes!, _pickedImageName ?? 'avatar.jpg');
+      if (!uploaded && mounted) {
+        AppSnackbar.error(context, auth.error ?? 'Photo upload failed');
+        return;
+      }
+    }
+
+    final success = await auth.completeProfileSetup(
+      name: _nameController.text,
+      email: _emailController.text,
+      city: _cityController.text,
+      referralCode: _referralCodeController.text,
+    );
+
+    if (!mounted) return;
+
+    if (success) {
+      final kyc = context.read<KycFlowProvider>();
+      await kyc.loadManualStatus();
+      if (!mounted) return;
+      unawaited(refreshAllProviders(context));
+      if (kyc.isFullyVerified) {
+        context.go(AppRoutes.home);
+      } else if (kyc.manualStatus.isPending) {
+        context.go(AppRoutes.kycPending);
+      } else if (kyc.manualStatus.isRejected) {
+        context.go(AppRoutes.kycRejected);
+      } else {
+        context.go(AppRoutes.kycSubmit);
+      }
+    } else {
+      AppSnackbar.error(context, auth.error ?? 'Could not save profile');
+    }
+  }
+
+  void _showPhotoOptions() {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Choose from gallery'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickImage(ImageSource.gallery);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text('Take a photo'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickImage(ImageSource.camera);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+    final colors = context.appColors;
+    final user = auth.user;
+    final resolvedUrl = ApiConfig.resolveMediaUrl(user?.avatarUrl ?? '');
+
+    ImageProvider? avatarImage;
+    if (_pickedImageBytes != null) {
+      avatarImage = MemoryImage(_pickedImageBytes!);
+    } else if (resolvedUrl.isNotEmpty) {
+      avatarImage = NetworkImage(resolvedUrl);
+    }
+
+    return PopScope(
+      canPop: false,
+      child: Scaffold(
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          AppColors.green.withValues(alpha: 0.15),
+                          AppColors.primary.withValues(alpha: 0.08),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppColors.green.withValues(alpha: 0.25)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Welcome to BullWave',
+                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                fontWeight: FontWeight.w800,
+                              ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Complete your profile to access live markets, stock prices, and your portfolio.',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: colors.textSecondary,
+                                height: 1.4,
+                              ),
+                        ),
+                        if (user?.phone.isNotEmpty == true) ...[
+                          const SizedBox(height: 12),
+                          Text(
+                            '+91 ${user!.phone}',
+                            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.green,
+                                ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: AppDimensions.paddingXl),
+                  Center(
+                    child: Stack(
+                      children: [
+                        CircleAvatar(
+                          radius: 52,
+                          backgroundColor: AppColors.green.withValues(alpha: 0.12),
+                          backgroundImage: avatarImage,
+                          child: avatarImage == null
+                              ? const Icon(Icons.person, size: 44, color: AppColors.green)
+                              : null,
+                        ),
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: Material(
+                            color: AppColors.primary,
+                            shape: const CircleBorder(),
+                            child: InkWell(
+                              customBorder: const CircleBorder(),
+                              onTap: auth.isLoading ? null : _showPhotoOptions,
+                              child: const Padding(
+                                padding: EdgeInsets.all(8),
+                                child: Icon(Icons.camera_alt, color: Colors.white, size: 18),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Center(
+                    child: Text(
+                      'Add a photo (optional)',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.textMuted),
+                    ),
+                  ),
+                  const SizedBox(height: AppDimensions.paddingLg),
+                  AppTextField(
+                    controller: _nameController,
+                    label: 'Full Name',
+                    hint: 'Your name',
+                    textCapitalization: TextCapitalization.words,
+                    validator: (v) =>
+                        v == null || v.trim().length < 2 ? 'Enter your full name' : null,
+                  ),
+                  const SizedBox(height: AppDimensions.paddingMd),
+                  AppTextField(
+                    controller: _emailController,
+                    label: 'Email',
+                    hint: 'you@email.com',
+                    keyboardType: TextInputType.emailAddress,
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) return 'Email is required';
+                      if (!v.contains('@') || !v.contains('.')) return 'Enter a valid email';
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: AppDimensions.paddingMd),
+                  AppTextField(
+                    controller: _cityController,
+                    label: 'City',
+                    hint: 'Mumbai',
+                    textCapitalization: TextCapitalization.words,
+                  ),
+                  const SizedBox(height: AppDimensions.paddingMd),
+                  AppTextField(
+                    controller: _referralCodeController,
+                    label: 'Referral Code (optional)',
+                    hint: 'Friend\'s code e.g. BW1234AB',
+                    textCapitalization: TextCapitalization.characters,
+                  ),
+                  const SizedBox(height: AppDimensions.paddingXl),
+                  PrimaryButton(
+                    label: 'Continue to Markets',
+                    isLoading: auth.isLoading,
+                    onPressed: auth.isLoading ? null : _submit,
+                  ),
+                  const SizedBox(height: 12),
+                  Center(
+                    child: Text(
+                      'Your profile is required before viewing stocks and prices.',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.textMuted),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

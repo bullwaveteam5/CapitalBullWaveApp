@@ -183,3 +183,167 @@ class DividendRecord(models.Model):
     payment_date = models.DateField()
     shares_held = models.PositiveIntegerField(default=0)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.UPCOMING)
+
+
+class CommodityHolding(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='commodity_holdings'
+    )
+    commodity_id = models.CharField(max_length=20, db_index=True)
+    quantity = models.PositiveIntegerField()
+    avg_price_usd = models.DecimalField(max_digits=12, decimal_places=2)
+
+    class Meta:
+        unique_together = ('user', 'commodity_id')
+
+
+class CommodityTrade(models.Model):
+    class Side(models.TextChoices):
+        BUY = 'BUY', 'Buy'
+        SELL = 'SELL', 'Sell'
+
+    class Status(models.TextChoices):
+        EXECUTED = 'Executed', 'Executed'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='commodity_trades'
+    )
+    commodity_id = models.CharField(max_length=20, db_index=True)
+    side = models.CharField(max_length=4, choices=Side.choices)
+    quantity = models.PositiveIntegerField()
+    price_usd = models.DecimalField(max_digits=12, decimal_places=2)
+    amount_inr = models.DecimalField(max_digits=14, decimal_places=2)
+    usd_inr_rate = models.DecimalField(max_digits=8, decimal_places=2)
+    avg_cost_usd = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+
+class OptionHolding(models.Model):
+    class AssetClass(models.TextChoices):
+        EQUITY_FNO = 'equity_fno', 'Equity F&O'
+        COMMODITY = 'commodity', 'Commodity'
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='option_holdings'
+    )
+    underlying = models.CharField(max_length=20, db_index=True)
+    asset_class = models.CharField(max_length=20, choices=AssetClass.choices, default=AssetClass.EQUITY_FNO)
+    strike = models.DecimalField(max_digits=12, decimal_places=4)
+    option_type = models.CharField(max_length=2)
+    expiry = models.DateField()
+    quantity = models.PositiveIntegerField()
+    avg_premium = models.DecimalField(max_digits=12, decimal_places=4)
+    lot_size = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        unique_together = ('user', 'underlying', 'strike', 'option_type', 'expiry', 'asset_class')
+
+
+class OptionTrade(models.Model):
+    class Side(models.TextChoices):
+        BUY = 'BUY', 'Buy'
+        SELL = 'SELL', 'Sell'
+
+    class Status(models.TextChoices):
+        EXECUTED = 'Executed', 'Executed'
+
+    class AssetClass(models.TextChoices):
+        EQUITY_FNO = 'equity_fno', 'Equity F&O'
+        COMMODITY = 'commodity', 'Commodity'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='option_trades'
+    )
+    underlying = models.CharField(max_length=20, db_index=True)
+    asset_class = models.CharField(max_length=20, choices=AssetClass.choices, default=AssetClass.EQUITY_FNO)
+    strike = models.DecimalField(max_digits=12, decimal_places=4)
+    option_type = models.CharField(max_length=2)
+    expiry = models.DateField()
+    side = models.CharField(max_length=4, choices=Side.choices)
+    quantity = models.PositiveIntegerField()
+    premium = models.DecimalField(max_digits=12, decimal_places=4)
+    lot_size = models.PositiveIntegerField(default=1)
+    amount_inr = models.DecimalField(max_digits=14, decimal_places=2)
+    avg_premium = models.DecimalField(max_digits=12, decimal_places=4, null=True, blank=True)
+    realized_pnl_inr = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.EXECUTED)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+
+class IpoEvent(models.Model):
+    class Status(models.TextChoices):
+        UPCOMING = 'upcoming', 'Upcoming'
+        OPEN = 'open', 'Open Now'
+        CLOSED = 'closed', 'Closed'
+        LISTED = 'listed', 'Listed'
+
+    id = models.CharField(primary_key=True, max_length=40)
+    company_name = models.CharField(max_length=160)
+    symbol = models.CharField(max_length=20, blank=True)
+    sector = models.CharField(max_length=80)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.UPCOMING)
+    open_date = models.DateField(null=True, blank=True)
+    close_date = models.DateField(null=True, blank=True)
+    listing_date = models.DateField(null=True, blank=True)
+    price_band_min = models.DecimalField(max_digits=12, decimal_places=2)
+    price_band_max = models.DecimalField(max_digits=12, decimal_places=2)
+    issue_size_cr = models.DecimalField(max_digits=10, decimal_places=2)
+    lot_size = models.PositiveIntegerField(default=1)
+    min_investment = models.DecimalField(max_digits=12, decimal_places=2)
+    gmp_percent = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
+    subscription_times = models.CharField(max_length=20, blank=True)
+    exchange = models.CharField(max_length=10, default='NSE')
+    is_featured = models.BooleanField(default=False)
+    description = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['open_date', 'listing_date']
+        verbose_name = 'IPO event'
+
+
+class IpoHolding(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='ipo_holdings'
+    )
+    ipo = models.ForeignKey(IpoEvent, on_delete=models.CASCADE, related_name='holdings')
+    lots = models.PositiveIntegerField()
+    quantity = models.PositiveIntegerField()
+    avg_price = models.DecimalField(max_digits=12, decimal_places=2)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'ipo')
+
+
+class IpoTrade(models.Model):
+    class Side(models.TextChoices):
+        APPLY = 'APPLY', 'Apply'
+        SELL = 'SELL', 'Sell'
+
+    class Status(models.TextChoices):
+        EXECUTED = 'Executed', 'Executed'
+        CANCELLED = 'Cancelled', 'Cancelled'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='ipo_trades'
+    )
+    ipo = models.ForeignKey(IpoEvent, on_delete=models.CASCADE, related_name='trades')
+    side = models.CharField(max_length=8, choices=Side.choices)
+    lots = models.PositiveIntegerField(default=1)
+    quantity = models.PositiveIntegerField()
+    price = models.DecimalField(max_digits=12, decimal_places=2)
+    amount_inr = models.DecimalField(max_digits=14, decimal_places=2)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.EXECUTED)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']

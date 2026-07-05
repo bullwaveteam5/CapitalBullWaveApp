@@ -77,6 +77,10 @@
 	<string>BullWave needs photo access to set your profile picture.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>BullWave needs camera access to take your profile photo.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>BullWave uses the microphone so you can talk to the AI assistant.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>BullWave converts your speech to text for the AI assistant.</string>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>tel</string>

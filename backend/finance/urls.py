@@ -1,5 +1,13 @@
 from django.urls import path
 
+from .goal_views import (
+    GoalContributeView,
+    GoalPlanDetailView,
+    GoalPlanListCreateView,
+    GoalRemindersView,
+    GoalTemplateListView,
+    GoalWithdrawView,
+)
 from .payment_views import CreateDepositOrderView, RazorpayWebhookView, VerifyDepositView
 from .views import (
     DepositView,
@@ -38,4 +46,10 @@ urlpatterns = [
     path('wallet/webhook/razorpay/', RazorpayWebhookView.as_view(), name='razorpay-webhook'),
     path('wallet/withdraw/', WithdrawView.as_view(), name='wallet-withdraw'),
     path('transactions/', TransactionListView.as_view(), name='transactions'),
+    path('goals/templates/', GoalTemplateListView.as_view(), name='goal-templates'),
+    path('goals/reminders/', GoalRemindersView.as_view(), name='goal-reminders'),
+    path('goals/', GoalPlanListCreateView.as_view(), name='goal-plans'),
+    path('goals/<uuid:goal_id>/', GoalPlanDetailView.as_view(), name='goal-detail'),
+    path('goals/<uuid:goal_id>/contribute/', GoalContributeView.as_view(), name='goal-contribute'),
+    path('goals/<uuid:goal_id>/withdraw/', GoalWithdrawView.as_view(), name='goal-withdraw'),
 ]

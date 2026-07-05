@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import base64
 import html
+import json
 import logging
 import mimetypes
 from pathlib import Path
@@ -15,9 +16,97 @@ from pathlib import Path
 from django.conf import settings
 from django.core.mail import EmailMessage, EmailMultiAlternatives
 
-from .email_tokens import make_kyc_action_token
+from urllib.parse import quote
+
+from .email_tokens import make_fno_action_token, make_kyc_action_token
 
 logger = logging.getLogger('bullwave.kyc')
+
+
+class EmailDeliveryError(RuntimeError):
+    """Email could not be sent (provider API or SMTP)."""
+
+
+def _email_provider() -> str:
+    return (getattr(settings, 'EMAIL_PROVIDER', 'smtp') or 'smtp').strip().lower()
+
+
+def _smtp_is_configured() -> bool:
+    return bool(
+        (getattr(settings, 'EMAIL_HOST_USER', '') or '').strip()
+        and (getattr(settings, 'EMAIL_HOST_PASSWORD', '') or '').strip()
+    )
+
+
+def _brevo_is_configured() -> bool:
+    return bool(
+        (getattr(settings, 'BREVO_API_KEY', '') or '').strip()
+        and (getattr(settings, 'BREVO_FROM_EMAIL', '') or '').strip()
+    )
+
+
+def _sendgrid_is_configured() -> bool:
+    return bool(
+        (getattr(settings, 'SENDGRID_API_KEY', '') or '').strip()
+        and (getattr(settings, 'SENDGRID_FROM_EMAIL', '') or '').strip()
+    )
+
+
+def email_delivery_chain() -> list[str]:
+    """Ordered providers to try: primary first, then other configured APIs, then SMTP."""
+    primary = _email_provider()
+    chain: list[str] = []
+    for candidate in (primary, 'brevo', 'sendgrid', 'smtp'):
+        if candidate in chain:
+            continue
+        if candidate == 'brevo' and not _brevo_is_configured():
+            continue
+        if candidate == 'sendgrid' and not _sendgrid_is_configured():
+            continue
+        if candidate == 'smtp' and not _smtp_is_configured():
+            continue
+        chain.append(candidate)
+    return chain
+
+
+def email_config_status() -> dict:
+    """Summary for health checks / manage.py check_email."""
+    chain = email_delivery_chain()
+    admin_kyc = (getattr(settings, 'ADMIN_KYC_EMAIL', '') or '').strip() or 'bullwaveteam5@gmail.com'
+    admin_fno = _admin_fno_email()
+    return {
+        'primary': _email_provider(),
+        'admin_email': admin_kyc,
+        'admin_fno_email': admin_fno,
+        'backend_public_url': (getattr(settings, 'BACKEND_PUBLIC_URL', '') or '').strip(),
+        'delivery_chain': chain,
+        'brevo': _brevo_is_configured(),
+        'sendgrid': _sendgrid_is_configured(),
+        'smtp': _smtp_is_configured(),
+        'ready': bool(chain),
+    }
+
+
+def _format_brevo_error(status_code: int, body: str) -> str:
+    try:
+        data = json.loads(body)
+    except json.JSONDecodeError:
+        return f'Brevo error {status_code}: {body[:400]}'
+
+    message = (data.get('message') or data.get('error') or body)[:400]
+    code = (data.get('code') or '').lower()
+    hint = ''
+    if status_code == 401 and 'ip' in message.lower():
+        hint = (
+            ' Add this server IP under Brevo → Settings → Security → Authorized IPs, '
+            'or disable IP restriction. SMTP fallback will be used if configured.'
+        )
+    elif 'sender' in message.lower() or code == 'invalid_parameter':
+        hint = (
+            ' Verify BREVO_FROM_EMAIL under Brevo → Senders & Domains '
+            '(must be a confirmed sender, not an unverified Gmail address).'
+        )
+    return f'Brevo error {status_code}: {message}{hint}'
 
 
 def _public_url(relative_or_absolute: str) -> str:
@@ -32,17 +121,19 @@ def _public_url(relative_or_absolute: str) -> str:
     return f'{base}{path if path.startswith("/") else f"/{path}"}'
 
 
-def _get_from_email() -> str:
-    provider = (getattr(settings, 'EMAIL_PROVIDER', 'smtp') or 'smtp').strip().lower()
-    if provider == 'brevo':
+def _get_from_email(*, for_smtp: bool = False) -> str:
+    provider = _email_provider()
+    smtp_user = (getattr(settings, 'EMAIL_HOST_USER', '') or '').strip()
+    if for_smtp and smtp_user:
+        return smtp_user
+    if provider == 'brevo' and not for_smtp:
         brevo_from = (getattr(settings, 'BREVO_FROM_EMAIL', '') or '').strip()
         if brevo_from:
             return brevo_from
-    if provider == 'sendgrid':
+    if provider == 'sendgrid' and not for_smtp:
         sg_from = (getattr(settings, 'SENDGRID_FROM_EMAIL', '') or '').strip()
         if sg_from:
             return sg_from
-    smtp_user = (getattr(settings, 'EMAIL_HOST_USER', '') or '').strip()
     if provider == 'smtp' and smtp_user:
         return smtp_user
     return (
@@ -91,11 +182,17 @@ def _send_brevo_email(
     import httpx
 
     api_key = (getattr(settings, 'BREVO_API_KEY', '') or '').strip()
+    from_email = (getattr(settings, 'BREVO_FROM_EMAIL', '') or '').strip()
     if not api_key:
-        raise RuntimeError('Brevo is selected but BREVO_API_KEY is missing.')
+        raise EmailDeliveryError('Brevo is selected but BREVO_API_KEY is missing.')
+    if not from_email:
+        raise EmailDeliveryError(
+            'Brevo is selected but BREVO_FROM_EMAIL is missing. '
+            'Set it to a sender verified in Brevo → Senders & Domains.'
+        )
 
     payload: dict = {
-        'sender': {'email': _get_from_email(), 'name': _get_from_name()},
+        'sender': {'email': from_email, 'name': _get_from_name()},
         'to': [{'email': to_email, 'name': to_name or to_email}],
         'subject': subject,
         'textContent': text_body,
@@ -114,7 +211,7 @@ def _send_brevo_email(
         timeout=25.0,
     )
     if r.status_code >= 400:
-        raise RuntimeError(f'Brevo error {r.status_code}: {r.text[:400]}')
+        raise EmailDeliveryError(_format_brevo_error(r.status_code, r.text))
 
 
 def _send_sendgrid_email(
@@ -130,7 +227,9 @@ def _send_sendgrid_email(
     api_key = (getattr(settings, 'SENDGRID_API_KEY', '') or '').strip()
     from_email = (getattr(settings, 'SENDGRID_FROM_EMAIL', '') or '').strip()
     if not api_key or not from_email:
-        raise RuntimeError('SendGrid is selected but SENDGRID_API_KEY/SENDGRID_FROM_EMAIL is missing.')
+        raise EmailDeliveryError(
+            'SendGrid is selected but SENDGRID_API_KEY/SENDGRID_FROM_EMAIL is missing.'
+        )
 
     content = [{'type': 'text/plain', 'value': text_body}]
     if html_body:
@@ -156,47 +255,30 @@ def _send_sendgrid_email(
         timeout=25.0,
     )
     if r.status_code >= 400:
-        raise RuntimeError(f'SendGrid error {r.status_code}: {r.text[:400]}')
+        raise EmailDeliveryError(f'SendGrid error {r.status_code}: {r.text[:400]}')
 
 
-def _send_email(
+def _send_smtp_email(
     *,
     to_email: str,
     subject: str,
     text_body: str,
     html_body: str = '',
-    to_name: str = '',
     attachments: list[str] | None = None,
 ) -> None:
-    provider = (getattr(settings, 'EMAIL_PROVIDER', 'smtp') or 'smtp').strip().lower()
+    if not _smtp_is_configured():
+        raise EmailDeliveryError(
+            'SMTP is not configured. Set EMAIL_HOST_USER and EMAIL_HOST_PASSWORD in .env.'
+        )
+
     paths = attachments or []
-
-    if provider == 'brevo':
-        _send_brevo_email(
-            to_email=to_email,
-            to_name=to_name,
-            subject=subject,
-            text_body=text_body,
-            html_body=html_body,
-            attachments=paths,
-        )
-        return
-
-    if provider == 'sendgrid':
-        _send_sendgrid_email(
-            to_email=to_email,
-            subject=subject,
-            text_body=text_body,
-            html_body=html_body,
-            attachments=paths,
-        )
-        return
+    from_email = _get_from_email(for_smtp=True)
 
     if html_body:
         msg = EmailMultiAlternatives(
             subject=subject,
             body=text_body,
-            from_email=_get_from_email(),
+            from_email=from_email,
             to=[to_email],
         )
         msg.attach_alternative(html_body, 'text/html')
@@ -212,7 +294,7 @@ def _send_email(
     email = EmailMessage(
         subject=subject,
         body=text_body,
-        from_email=_get_from_email(),
+        from_email=from_email,
         to=[to_email],
     )
     for idx, path in enumerate(paths, start=1):
@@ -222,6 +304,81 @@ def _send_email(
             except Exception as exc:
                 logger.warning('SMTP attach failed %s: %s', idx, exc)
     email.send(fail_silently=False)
+
+
+def _send_email(
+    *,
+    to_email: str,
+    subject: str,
+    text_body: str,
+    html_body: str = '',
+    to_name: str = '',
+    attachments: list[str] | None = None,
+) -> str:
+    """Send email; returns the provider name that succeeded (brevo | sendgrid | smtp)."""
+    paths = attachments or []
+    chain = email_delivery_chain()
+    if not chain:
+        raise EmailDeliveryError(
+            'No email provider is configured. Set Brevo, SendGrid, or Gmail SMTP in .env.'
+        )
+
+    errors: list[str] = []
+    for provider in chain:
+        try:
+            if provider == 'brevo':
+                _send_brevo_email(
+                    to_email=to_email,
+                    to_name=to_name,
+                    subject=subject,
+                    text_body=text_body,
+                    html_body=html_body,
+                    attachments=paths,
+                )
+            elif provider == 'sendgrid':
+                _send_sendgrid_email(
+                    to_email=to_email,
+                    subject=subject,
+                    text_body=text_body,
+                    html_body=html_body,
+                    attachments=paths,
+                )
+            else:
+                _send_smtp_email(
+                    to_email=to_email,
+                    subject=subject,
+                    text_body=text_body,
+                    html_body=html_body,
+                    attachments=paths,
+                )
+            logger.info('Email sent via %s → %s (%s)', provider, to_email, subject[:60])
+            return provider
+        except EmailDeliveryError as exc:
+            logger.warning('Email provider %s failed: %s', provider, exc)
+            errors.append(f'{provider}: {exc}')
+
+    raise EmailDeliveryError('All email providers failed. ' + ' | '.join(errors))
+
+
+def _kyc_review_base_url() -> str:
+    base = (getattr(settings, 'BACKEND_PUBLIC_URL', '') or '').strip().rstrip('/')
+    if base:
+        return base
+    logger.warning(
+        'BACKEND_PUBLIC_URL is not set — email approve/reject buttons will not work. '
+        'Set e.g. BACKEND_PUBLIC_URL=https://api.yourdomain.com (or ngrok URL in dev).'
+    )
+    return 'http://127.0.0.1:8000'
+
+
+def _warn_if_local_review_url(base: str) -> None:
+    lowered = base.lower()
+    if lowered.startswith('http://127.0.0.1') or lowered.startswith('http://localhost'):
+        logger.warning(
+            'BACKEND_PUBLIC_URL is %s — Approve/Reject links in admin email only work on this '
+            'machine while Django is running. For phone/Gmail testing use ngrok or your deployed API URL.',
+            base,
+        )
 
 
 def _build_admin_kyc_html(
@@ -317,18 +474,13 @@ def notify_admin_new_kyc_request(
         logger.warning('ADMIN_KYC_EMAIL not set — skipping KYC admin notification')
         return
 
-    base = (getattr(settings, 'BACKEND_PUBLIC_URL', '') or '').strip().rstrip('/')
-    if not base:
-        logger.warning(
-            'BACKEND_PUBLIC_URL is not set — email approve/reject buttons will not work. '
-            'Set e.g. BACKEND_PUBLIC_URL=https://api.yourdomain.com'
-        )
-        base = 'http://127.0.0.1:8000'
+    base = _kyc_review_base_url()
+    _warn_if_local_review_url(base)
 
     approve_token = make_kyc_action_token(request_id, 'approve')
     reject_token = make_kyc_action_token(request_id, 'reject')
-    approve_url = f'{base}/api/v1/kyc/review/approve/?token={approve_token}'
-    reject_url = f'{base}/api/v1/kyc/review/reject/?token={reject_token}'
+    approve_url = f'{base}/api/v1/kyc/review/approve/?token={quote(approve_token)}'
+    reject_url = f'{base}/api/v1/kyc/review/reject/?token={quote(reject_token)}'
 
     paths = pan_image_paths or []
     urls = [_public_url(u) for u in (pan_image_urls or []) if u]
@@ -362,16 +514,19 @@ def notify_admin_new_kyc_request(
     )
 
     try:
-        _send_email(
+        provider = _send_email(
             to_email=admin_email,
             subject=subject,
             text_body=text_body,
             html_body=html_body,
             attachments=paths,
         )
+        logger.info('KYC admin notification sent via %s to %s', provider, admin_email)
     except Exception as exc:
         logger.exception(
-            'Failed to send KYC admin email. Check EMAIL_PROVIDER + creds in .env. Error: %s',
+            'Failed to send KYC admin email to %s. Providers tried: %s. Error: %s',
+            admin_email,
+            ' -> '.join(email_delivery_chain()) or '(none)',
             exc,
         )
 
@@ -456,8 +611,247 @@ def notify_user_kyc_rejected(
         except Exception as exc:
             logger.exception('Failed to send KYC rejection email to %s: %s', email, exc)
 
+def _admin_fno_email() -> str:
+    fno = (getattr(settings, 'ADMIN_FNO_EMAIL', '') or '').split('#', 1)[0].strip()
+    if fno:
+        return fno
+    kyc = (getattr(settings, 'ADMIN_KYC_EMAIL', '') or '').split('#', 1)[0].strip()
+    return kyc or 'bullwaveteam5@gmail.com'
+
+
+def _build_admin_fno_html(
+    *,
+    request_id: str,
+    user_phone: str,
+    user_email: str,
+    user_name: str,
+    proof_label: str,
+    portfolio_value: str,
+    submitted_at: str,
+    document_url: str,
+    approve_url: str,
+    reject_url: str,
+) -> str:
+    rows = [
+        ('User name', user_name or '—'),
+        ('Phone', user_phone),
+        ('Email', user_email or '—'),
+        ('Proof type', proof_label),
+        ('Portfolio value', portfolio_value),
+        ('Submitted', submitted_at.replace('T', ' ')[:19]),
+        ('Request ID', request_id),
+    ]
+    table_rows = ''.join(
+        f'<tr><td style="padding:8px 12px;color:#64748b;border-bottom:1px solid #e2e8f0;">{html.escape(k)}</td>'
+        f'<td style="padding:8px 12px;font-weight:600;border-bottom:1px solid #e2e8f0;">{html.escape(v)}</td></tr>'
+        for k, v in rows
+    )
+    doc_link = (
+        f'<li style="margin:6px 0;"><a href="{html.escape(_public_url(document_url))}" '
+        f'style="color:#9333ea;">View uploaded document</a></li>'
+        if document_url
+        else '<li style="color:#64748b;">See email attachment</li>'
+    )
+
+    return f"""<!DOCTYPE html>
+<html><body style="margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <div style="max-width:600px;margin:24px auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;">
+    <div style="background:linear-gradient(135deg,#581c87,#9333ea);padding:20px 24px;">
+      <h1 style="margin:0;color:#fff;font-size:20px;">New F&O eligibility request</h1>
+      <p style="margin:6px 0 0;color:#e9d5ff;font-size:14px;">Review document and approve F&O access</p>
+    </div>
+    <div style="padding:24px;">
+      <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:20px;">{table_rows}</table>
+      <p style="margin:0 0 8px;font-weight:700;font-size:14px;">Uploaded proof</p>
+      <ul style="margin:0 0 24px;padding-left:20px;">{doc_link}</ul>
+      <table role="presentation" cellspacing="0" cellpadding="0" style="margin:0 auto;">
+        <tr>
+          <td style="padding-right:10px;">
+            <a href="{html.escape(approve_url)}"
+               style="display:inline-block;background:#16a34a;color:#fff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:700;">
+              ✓ Approve F&O Access
+            </a>
+          </td>
+          <td>
+            <a href="{html.escape(reject_url)}"
+               style="display:inline-block;background:#dc2626;color:#fff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:700;">
+              ✕ Reject
+            </a>
+          </td>
+        </tr>
+      </table>
+      <p style="margin:24px 0 0;font-size:12px;color:#94a3b8;line-height:1.5;">
+        Links expire in 7 days. Approving unlocks Futures &amp; Options trading for this user.
+        Rejecting notifies the user to choose another proof option.
+      </p>
+    </div>
+  </div>
+</body></html>"""
+
+
+def notify_admin_new_fno_request(
+    *,
+    user_phone: str,
+    user_email: str,
+    user_name: str,
+    proof_label: str,
+    portfolio_value: float,
+    request_id: str,
+    document_path: str = '',
+    document_url: str = '',
+    submitted_at: str = '',
+) -> None:
+    """Notify admin with F&O proof details + one-click approve/reject links."""
+    admin_email = _admin_fno_email()
+    if not admin_email:
+        logger.warning('ADMIN_FNO_EMAIL / ADMIN_KYC_EMAIL not set — skipping F&O admin notification')
+        return
+
+    logger.info(
+        'Sending F&O admin notification for request %s (%s) → %s',
+        request_id,
+        proof_label,
+        admin_email,
+    )
+
+    base = _kyc_review_base_url()
+    _warn_if_local_review_url(base)
+
+    approve_token = make_fno_action_token(request_id, 'approve')
+    reject_token = make_fno_action_token(request_id, 'reject')
+    approve_url = f'{base}/api/v1/fno/review/approve/?token={quote(approve_token)}'
+    reject_url = f'{base}/api/v1/fno/review/reject/?token={quote(reject_token)}'
+
+    paths = [document_path] if document_path else []
+    portfolio_str = f'₹{portfolio_value:,.0f}'
+    subject = f'[BullWave] F&O review — {proof_label} ({user_phone})'
+
+    text_body = (
+        f'New F&O eligibility submission — action required\n\n'
+        f'Name: {user_name or "—"}\n'
+        f'Phone: {user_phone}\n'
+        f'Email: {user_email or "—"}\n'
+        f'Proof: {proof_label}\n'
+        f'Portfolio value: {portfolio_str}\n'
+        f'Submitted: {submitted_at}\n'
+        f'Request ID: {request_id}\n\n'
+        f'Approve: {approve_url}\n'
+        f'Reject:  {reject_url}\n'
+    )
+    html_body = _build_admin_fno_html(
+        request_id=request_id,
+        user_phone=user_phone,
+        user_email=user_email,
+        user_name=user_name,
+        proof_label=proof_label,
+        portfolio_value=portfolio_str,
+        submitted_at=submitted_at,
+        document_url=document_url,
+        approve_url=approve_url,
+        reject_url=reject_url,
+    )
+
+    try:
+        provider = _send_email(
+            to_email=admin_email,
+            subject=subject,
+            text_body=text_body,
+            html_body=html_body,
+            attachments=paths,
+        )
+        logger.info('F&O admin notification sent via %s to %s', provider, admin_email)
+    except Exception as exc:
+        logger.exception(
+            'Failed to send F&O admin email to %s. Providers tried: %s. Error: %s',
+            admin_email,
+            ' -> '.join(email_delivery_chain()) or '(none)',
+            exc,
+        )
+
+
+def notify_user_fno_approved(
+    *,
+    user_phone: str,
+    user_name: str,
+    user_email: str = '',
+) -> None:
+    """Tell the user their F&O access is approved."""
+    from core.integrations.sms_service import send_notification_sms
+
+    name = (user_name or 'Investor').strip()
+    subject = '[BullWave] F&O access approved — trade futures & options'
+    text_body = (
+        f'Hi {name},\n\n'
+        f'Your F&O eligibility verification is complete.\n\n'
+        f'Open the BullWave app — you can now access Futures & Options, '
+        f'option chains, and paper trading.\n\n'
+        f'Thank you for choosing BullWave Capital.'
+    )
+    html_body = f"""<html><body style="font-family:sans-serif;line-height:1.6;">
+      <h2 style="color:#9333ea;">F&O access approved ✓</h2>
+      <p>Hi {html.escape(name)},</p>
+      <p>Your F&O eligibility is <strong>verified</strong>.</p>
+      <p>Open the <strong>BullWave</strong> app to trade Futures &amp; Options.</p>
+      <p style="color:#64748b;">Thank you for choosing BullWave Capital.</p>
+    </body></html>"""
+    sms = (
+        f'BullWave: F&O access approved. Open the app to trade futures and options. '
+        f'Welcome, {name.split()[0] if name else "Investor"}!'
+    )
+
+    email = (user_email or '').strip()
+    if email:
+        try:
+            _send_email(to_email=email, subject=subject, text_body=text_body, html_body=html_body)
+        except Exception as exc:
+            logger.exception('Failed to send F&O approval email to %s: %s', email, exc)
+
     if user_phone:
         try:
             send_notification_sms(user_phone, sms)
         except Exception as exc:
-            logger.warning('KYC rejection SMS failed for %s: %s', user_phone, exc)
+            logger.warning('F&O approval SMS failed for %s: %s', user_phone, exc)
+
+
+def notify_user_fno_rejected(
+    *,
+    user_phone: str,
+    user_name: str,
+    user_email: str = '',
+    reason: str = '',
+) -> None:
+    """Tell the user their F&O proof was rejected so they can resubmit."""
+    from core.integrations.sms_service import send_notification_sms
+
+    from .constants import FNO_WRONG_INFO_REJECTION_REASON
+
+    name = (user_name or 'Investor').strip()
+    reason_text = (reason or FNO_WRONG_INFO_REJECTION_REASON).strip()
+    subject = '[BullWave] F&O verification could not be completed'
+    text_body = (
+        f'Hi {name},\n\n'
+        f'We could not verify your F&O eligibility document.\n\n'
+        f'{reason_text}\n\n'
+        f'Open the BullWave app and choose another proof option (Form 16, ITR, '
+        f'bank statement, or ₹50k portfolio).'
+    )
+    html_body = f"""<html><body style="font-family:sans-serif;line-height:1.6;">
+      <h2 style="color:#dc2626;">F&O not verified</h2>
+      <p>Hi {html.escape(name)},</p>
+      <p>{html.escape(reason_text)}</p>
+      <p>Open the <strong>BullWave</strong> app and submit another eligibility proof.</p>
+    </body></html>"""
+    sms = f'BullWave: {reason_text[:120]} Open the app to resubmit F&O proof.'
+
+    email = (user_email or '').strip()
+    if email:
+        try:
+            _send_email(to_email=email, subject=subject, text_body=text_body, html_body=html_body)
+        except Exception as exc:
+            logger.exception('Failed to send F&O rejection email to %s: %s', email, exc)
+
+    if user_phone:
+        try:
+            send_notification_sms(user_phone, sms)
+        except Exception as exc:
+            logger.warning('F&O rejection SMS failed for %s: %s', user_phone, exc)

@@ -16,9 +16,13 @@ import 'features/kyc/presentation/provider/kyc_provider.dart';
 import 'features/kyc/presentation/provider/bank_verification_provider.dart';
 import 'features/profile/presentation/provider/app_provider.dart';
 import 'features/profile/presentation/provider/referral_support_provider.dart';
+import 'features/stocks/presentation/provider/commodity_provider.dart';
 import 'features/stocks/presentation/provider/stock_market_provider.dart';
 import 'features/stocks/presentation/provider/stock_portfolio_provider.dart';
+import 'features/stocks/presentation/provider/option_trading_provider.dart';
 import 'features/stocks/presentation/provider/stock_features_provider.dart';
+import 'features/fno/presentation/provider/fno_flow_provider.dart';
+import 'features/goals/presentation/provider/goal_plan_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -57,8 +61,12 @@ class _BullWaveAppState extends State<BullWaveApp> {
         ChangeNotifierProvider(create: (_) => SupportProvider()),
         ChangeNotifierProvider(create: (_) => ReferralProvider()),
         ChangeNotifierProvider(create: (_) => StockMarketProvider()),
+        ChangeNotifierProvider(create: (_) => CommodityProvider()),
         ChangeNotifierProvider(create: (_) => StockPortfolioProvider()),
         ChangeNotifierProvider(create: (_) => StockFeaturesProvider()),
+        ChangeNotifierProvider(create: (_) => OptionTradingProvider()),
+        ChangeNotifierProvider(create: (_) => FnoFlowProvider()),
+        ChangeNotifierProvider(create: (_) => GoalPlanProvider()),
       ],
       child: Consumer<AppProvider>(
         builder: (context, appProvider, _) {

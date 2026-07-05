@@ -106,4 +106,28 @@ def get_stock_portfolio(user, refresh: bool = False) -> dict[str, Any]:
 
 
 def get_stock_summary(user, refresh: bool = False) -> dict[str, Any]:
-    return get_stock_portfolio(user, refresh=refresh)['summary']
+    """Lightweight totals for F&O / wallet checks — skips trade history."""
+    holdings = list(_active_holdings(user))
+    if refresh and holdings:
+        symbols = [h.stock.symbol for h in holdings]
+        try:
+            refresh_stocks(symbols)
+            holdings = list(_active_holdings(user))
+        except Exception:
+            pass
+
+    rows = [_holding_row(h) for h in holdings]
+    total_invested = sum(row['invested'] for row in rows)
+    total_value = sum(row['current_value'] for row in rows)
+    total_pnl = total_value - total_invested
+    day_pnl = sum(row['day_pnl'] for row in rows)
+    prev_value = total_value - day_pnl
+    return {
+        'total_invested': round(total_invested, 2),
+        'current_value': round(total_value, 2),
+        'total_pnl': round(total_pnl, 2),
+        'total_pnl_percent': round((total_pnl / total_invested * 100) if total_invested else 0, 2),
+        'day_pnl': round(day_pnl, 2),
+        'day_pnl_percent': round((day_pnl / prev_value * 100) if prev_value else 0, 2),
+        'holdings_count': len(rows),
+    }

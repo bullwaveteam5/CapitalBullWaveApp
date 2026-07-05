@@ -324,3 +324,121 @@ class OptionChainResponse {
     required this.contracts,
   });
 }
+
+class IpoEventModel {
+  final String id;
+  final String companyName;
+  final String symbol;
+  final String sector;
+  final String status;
+  final DateTime? openDate;
+  final DateTime? closeDate;
+  final DateTime? listingDate;
+  final double priceBandMin;
+  final double priceBandMax;
+  final double issueSizeCr;
+  final int lotSize;
+  final double minInvestment;
+  final double? gmpPercent;
+  final String? subscriptionTimes;
+  final String exchange;
+  final bool isFeatured;
+  final String description;
+  final double listingPrice;
+
+  const IpoEventModel({
+    required this.id,
+    required this.companyName,
+    required this.symbol,
+    required this.sector,
+    required this.status,
+    this.openDate,
+    this.closeDate,
+    this.listingDate,
+    required this.priceBandMin,
+    required this.priceBandMax,
+    required this.issueSizeCr,
+    required this.lotSize,
+    required this.minInvestment,
+    this.gmpPercent,
+    this.subscriptionTimes,
+    required this.exchange,
+    required this.isFeatured,
+    required this.description,
+    this.listingPrice = 0,
+  });
+
+  String get priceBandLabel => '₹${priceBandMin.toStringAsFixed(0)} – ₹${priceBandMax.toStringAsFixed(0)}';
+
+  bool get isOpen => status == 'open';
+  bool get isUpcoming => status == 'upcoming';
+  bool get isListed => status == 'listed';
+
+  double get applyPrice => priceBandMax;
+
+  double costForLots(int lots) => lots * lotSize * applyPrice;
+}
+
+class IpoHoldingModel {
+  final String ipoId;
+  final String companyName;
+  final String symbol;
+  final String sector;
+  final String ipoStatus;
+  final int lots;
+  final int quantity;
+  final double avgPrice;
+  final double ltp;
+  final double investedInr;
+  final double currentValueInr;
+  final double pnlInr;
+  final double pnlPercent;
+  final bool canSell;
+
+  const IpoHoldingModel({
+    required this.ipoId,
+    required this.companyName,
+    required this.symbol,
+    required this.sector,
+    required this.ipoStatus,
+    required this.lots,
+    required this.quantity,
+    required this.avgPrice,
+    required this.ltp,
+    required this.investedInr,
+    required this.currentValueInr,
+    required this.pnlInr,
+    required this.pnlPercent,
+    required this.canSell,
+  });
+}
+
+class IpoTradeModel {
+  final String id;
+  final String ipoId;
+  final String companyName;
+  final String symbol;
+  final String side;
+  final int lots;
+  final int quantity;
+  final double price;
+  final double amountInr;
+  final DateTime time;
+  final String status;
+
+  const IpoTradeModel({
+    required this.id,
+    required this.ipoId,
+    required this.companyName,
+    required this.symbol,
+    required this.side,
+    required this.lots,
+    required this.quantity,
+    required this.price,
+    required this.amountInr,
+    required this.time,
+    required this.status,
+  });
+
+  bool get isApply => side == 'APPLY';
+}

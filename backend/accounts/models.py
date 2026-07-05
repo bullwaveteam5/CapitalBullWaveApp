@@ -38,6 +38,12 @@ class User(AbstractBaseUser, PermissionsMixin):
         IN_PROGRESS = 'in_progress', 'In Progress'
         COMPLETED = 'completed', 'Completed'
 
+    class FnoStatus(models.TextChoices):
+        NOT_SUBMITTED = 'not_submitted', 'Not Submitted'
+        PENDING = 'pending', 'Pending'
+        VERIFIED = 'verified', 'Verified'
+        REJECTED = 'rejected', 'Rejected'
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     phone = models.CharField(max_length=15, unique=True, db_index=True)
     name = models.CharField(max_length=120, blank=True)
@@ -52,6 +58,9 @@ class User(AbstractBaseUser, PermissionsMixin):
     )
     kyc_status = models.CharField(
         max_length=20, choices=KycStatus.choices, default=KycStatus.NOT_SUBMITTED
+    )
+    fno_status = models.CharField(
+        max_length=20, choices=FnoStatus.choices, default=FnoStatus.NOT_SUBMITTED
     )
     referral_code = models.CharField(max_length=20, unique=True, blank=True)
     referred_by = models.ForeignKey(

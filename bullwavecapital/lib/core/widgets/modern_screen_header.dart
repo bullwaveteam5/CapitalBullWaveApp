@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import '../api/api_config.dart';
 import '../theme/app_theme_extension.dart';
 import '../theme/colors.dart';
 
@@ -24,14 +25,16 @@ class ModernScreenHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
+    final resolvedAvatar = ApiConfig.resolveMediaUrl(avatarUrl ?? '');
+    final showAvatar = resolvedAvatar.isNotEmpty;
 
     return Row(
       children: [
-        if (avatarUrl != null) ...[
+        if (showAvatar) ...[
           CircleAvatar(
             radius: 22,
-            backgroundColor: AppColors.green.withValues(alpha: 0.12),
-            backgroundImage: CachedNetworkImageProvider(avatarUrl!),
+            backgroundColor: AppColors.brandOrange.withValues(alpha: 0.12),
+            backgroundImage: CachedNetworkImageProvider(resolvedAvatar),
           ),
           const SizedBox(width: 12),
         ],
@@ -108,13 +111,13 @@ class _IconCircleButton extends StatelessWidget {
                     height: 16,
                     alignment: Alignment.center,
                     decoration: const BoxDecoration(
-                      color: AppColors.green,
+                      color: AppColors.brandOrange,
                       shape: BoxShape.circle,
                     ),
                     child: Text(
                       badge > 9 ? '9+' : '$badge',
                       style: const TextStyle(
-                        color: Colors.black,
+                        color: Colors.white,
                         fontSize: 9,
                         fontWeight: FontWeight.w800,
                       ),

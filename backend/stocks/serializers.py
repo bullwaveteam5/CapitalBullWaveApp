@@ -176,6 +176,27 @@ class PaperOrderSerializer(CamelCaseSerializer):
     quantity = serializers.IntegerField(min_value=1)
 
 
+class CommodityOrderSerializer(CamelCaseSerializer):
+    commodity_id = serializers.CharField()
+    side = serializers.ChoiceField(choices=['BUY', 'SELL'])
+    quantity = serializers.IntegerField(min_value=1)
+
+
+class OptionOrderSerializer(CamelCaseSerializer):
+    underlying = serializers.CharField()
+    strike = serializers.DecimalField(max_digits=12, decimal_places=4)
+    option_type = serializers.CharField()
+    expiry = serializers.DateField()
+    side = serializers.ChoiceField(choices=['BUY', 'SELL'])
+    quantity = serializers.IntegerField(min_value=1)
+    premium = serializers.DecimalField(max_digits=12, decimal_places=4)
+    asset_class = serializers.ChoiceField(
+        choices=['equity_fno', 'commodity'],
+        default='equity_fno',
+        required=False,
+    )
+
+
 class ScreenerStockSerializer(CamelCaseSerializer):
     stock = StockSerializer()
     roe = serializers.DecimalField(max_digits=8, decimal_places=2)

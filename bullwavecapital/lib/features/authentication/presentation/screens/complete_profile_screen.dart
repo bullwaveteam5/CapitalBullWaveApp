@@ -34,6 +34,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
 
   Uint8List? _pickedImageBytes;
   String? _pickedImageName;
+  bool _removeAvatar = false;
 
   @override
   void initState() {
@@ -66,7 +67,8 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
     final bytes = await file.readAsBytes();
     setState(() {
       _pickedImageBytes = bytes;
-      _pickedImageName = file.name;
+      _pickedImageName = file.name.isNotEmpty ? file.name : 'avatar.jpg';
+      _removeAvatar = false;
     });
   }
 
@@ -76,11 +78,16 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
     final auth = context.read<AuthProvider>();
 
     if (_pickedImageBytes != null) {
-      final uploaded = await auth.uploadAvatar(_pickedImageBytes!, _pickedImageName ?? 'avatar.jpg');
+      final uploaded = await auth.uploadAvatar(
+        _pickedImageBytes!,
+        _pickedImageName ?? 'avatar.jpg',
+      );
       if (!uploaded && mounted) {
         AppSnackbar.error(context, auth.error ?? 'Photo upload failed');
         return;
       }
+    } else if (_removeAvatar) {
+      await auth.removeAvatar();
     }
 
     final success = await auth.completeProfileSetup(
@@ -134,6 +141,20 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                 _pickImage(ImageSource.camera);
               },
             ),
+            if (_pickedImageBytes != null ||
+                (context.read<AuthProvider>().user?.avatarUrl.isNotEmpty ?? false))
+              ListTile(
+                leading: const Icon(Icons.delete_outline, color: AppColors.error),
+                title: const Text('Remove photo', style: TextStyle(color: AppColors.error)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  setState(() {
+                    _pickedImageBytes = null;
+                    _pickedImageName = null;
+                    _removeAvatar = true;
+                  });
+                },
+              ),
           ],
         ),
       ),
@@ -150,7 +171,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
     ImageProvider? avatarImage;
     if (_pickedImageBytes != null) {
       avatarImage = MemoryImage(_pickedImageBytes!);
-    } else if (resolvedUrl.isNotEmpty) {
+    } else if (!_removeAvatar && resolvedUrl.isNotEmpty) {
       avatarImage = NetworkImage(resolvedUrl);
     }
 
@@ -244,7 +265,9 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                   const SizedBox(height: 8),
                   Center(
                     child: Text(
-                      'Add a photo (optional)',
+                      _pickedImageBytes != null || (!_removeAvatar && resolvedUrl.isNotEmpty)
+                          ? 'Tap camera to change or remove photo'
+                          : 'Add a photo (optional)',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.textMuted),
                     ),
                   ),

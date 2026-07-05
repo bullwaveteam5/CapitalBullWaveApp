@@ -9,7 +9,8 @@ from django.utils import timezone
 
 from accounts.models import BankAccount, User
 from services.providers.cashfree_config import cashfree_settings
-from services.providers.cashfree_secure_id import CashfreeSecureIdError, verify_bank_account, verify_pan
+from services.providers.cashfree_secure_id import CashfreeSecureIdError
+from core.integrations.cashfree_bypass import verify_bank_with_bypass, verify_pan_with_bypass
 
 from .masking import mask_account_number, mask_pan
 from .models import KycProfile, VerificationAuditLog
@@ -23,85 +24,17 @@ ACCOUNT_REGEX = re.compile(r'^\d{9,18}$')
 NAME_MATCH_PASS = frozenset({'DIRECT_MATCH', 'GOOD_PARTIAL_MATCH', 'MODERATE_PARTIAL_MATCH'})
 
 
-def _sandbox_bypass_allowed() -> bool:
-    """Allow sandbox KYC without full Cashfree verification (dev only)."""
-    cfg = cashfree_settings()
-    if cfg.is_production:
-        return False
-    return bool(getattr(settings, 'DEBUG', False) or getattr(settings, 'KYC_AUTO_APPROVE', False))
-
-
-def _should_bypass_cashfree(exc: CashfreeSecureIdError) -> bool:
-    if not _sandbox_bypass_allowed():
-        return False
-    # Never bypass invalid API credentials — fix keys instead.
-    return exc.code != 'auth_failed'
-
-
-def _mock_pan_result(pan: str, holder_name: str) -> dict:
-    name = (holder_name or 'Verified User').strip()
-    return {
-        'reference_id': f'sandbox-{pan[-4:]}',
-        'registered_name': name,
-        'pan_type': 'Individual',
-        'name_match_result': 'DIRECT_MATCH',
-        'name_match_score': 100,
-        'valid': True,
-        'dev_bypass': True,
-    }
-
-
-def _mock_bank_result(*, account_holder_name: str, ifsc: str) -> dict:
-    bank_name = 'Sandbox Bank'
-    if ifsc.upper().startswith('HDFC'):
-        bank_name = 'HDFC Bank'
-    elif ifsc.upper().startswith('SBIN'):
-        bank_name = 'State Bank of India'
-    elif ifsc.upper().startswith('ICIC'):
-        bank_name = 'ICICI Bank'
-    return {
-        'reference_id': f'sandbox-{ifsc[-4:]}',
-        'name_at_bank': account_holder_name,
-        'bank_name': bank_name,
-        'branch': 'Sandbox Branch',
-        'city': 'Mumbai',
-        'name_match_result': 'DIRECT_MATCH',
-        'name_match_score': 100,
-        'account_status': 'VALID',
-        'dev_bypass': True,
-    }
-
-
 def _cashfree_pan(pan: str, holder_name: str) -> dict:
-    try:
-        return verify_pan(pan, holder_name)
-    except CashfreeSecureIdError as exc:
-        if _should_bypass_cashfree(exc):
-            logger.warning(
-                'Cashfree PAN failed (%s) — sandbox dev bypass with entered details. '
-                'Use production Cashfree keys to verify real PANs.',
-                exc.code or 'verification_failed',
-            )
-            return _mock_pan_result(pan, holder_name)
-        raise
+    return verify_pan_with_bypass(pan, holder_name)
 
 
 def _cashfree_bank(*, bank_account: str, ifsc: str, name: str, phone: str) -> dict:
-    try:
-        return verify_bank_account(
-            bank_account=bank_account,
-            ifsc=ifsc,
-            name=name,
-            phone=phone,
-        )
-    except CashfreeSecureIdError as exc:
-        if _should_bypass_cashfree(exc):
-            logger.warning(
-                'Cashfree bank verify blocked (%s) — using sandbox dev bypass.',
-                exc.code,
-            )
-            return _mock_bank_result(account_holder_name=name, ifsc=ifsc)
-        raise
+    return verify_bank_with_bypass(
+        bank_account=bank_account,
+        ifsc=ifsc,
+        name=name,
+        phone=phone,
+    )
 
 
 def get_or_create_profile(user) -> KycProfile:

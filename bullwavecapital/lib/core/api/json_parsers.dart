@@ -1,6 +1,11 @@
+import 'package:flutter/material.dart';
+
+import '../../models/commodity_model.dart';
+import '../../models/goal_plan_model.dart';
 import '../../models/investment_model.dart';
 import '../../models/market_index_model.dart';
 import '../../models/notification_model.dart';
+import '../../models/option_trade_model.dart';
 import '../../models/portfolio_model.dart';
 import '../../models/referral_model.dart';
 import '../../models/stock_model.dart';
@@ -47,6 +52,7 @@ PortfolioModel parsePortfolio(Map<String, dynamic> json) => PortfolioModel(
       holdingsCount: _int(json['holdingsCount']),
       stocksInvested: _num(json['stocksInvested']),
       stocksValue: _num(json['stocksValue']),
+      walletBalance: _num(json['walletBalance']),
     );
 
 PortfolioSummaryModel parsePortfolioSummary(Map<String, dynamic> json) =>
@@ -120,16 +126,20 @@ TransactionModel parseTransaction(Map<String, dynamic> json) {
   );
 }
 
-InvestmentPlanModel parseInvestmentPlan(Map<String, dynamic> json) =>
-    InvestmentPlanModel(
-      id: json['id'] as String? ?? '',
-      name: json['name'] as String? ?? '',
-      minimumInvestment: _num(json['minimumInvestment']),
-      monthlyReturnRate: _num(json['monthlyReturnRate']),
-      annualReturnRate: _num(json['annualReturnRate']),
-      description: json['description'] as String? ?? '',
-      isFeatured: json['isFeatured'] as bool? ?? false,
-    );
+InvestmentPlanModel parseInvestmentPlan(Map<String, dynamic> json) {
+  final monthlyRate = _num(json['monthlyReturnRate']);
+  return InvestmentPlanModel(
+    id: json['id']?.toString() ?? '',
+    name: json['name'] as String? ?? '',
+    minimumInvestment: _num(json['minimumInvestment']),
+    monthlyReturnRate: monthlyRate,
+    monthlyReturnMin: json['monthlyReturnMin'] != null ? _num(json['monthlyReturnMin']) : monthlyRate,
+    monthlyReturnMax: json['monthlyReturnMax'] != null ? _num(json['monthlyReturnMax']) : monthlyRate,
+    annualReturnRate: _num(json['annualReturnRate']),
+    description: json['description'] as String? ?? '',
+    isFeatured: json['isFeatured'] as bool? ?? false,
+  );
+}
 
 InvestmentDetailModel parseInvestmentDetail(Map<String, dynamic> json) =>
     InvestmentDetailModel(
@@ -151,6 +161,91 @@ MarketIndexModel parseMarketIndex(Map<String, dynamic> json) => MarketIndexModel
       value: _num(json['value']),
       change: _num(json['change']),
       changePercent: _num(json['changePercent']),
+    );
+
+CommodityModel parseCommodity(Map<String, dynamic> json) => CommodityModel(
+      id: json['id'] as String? ?? '',
+      name: json['name'] as String? ?? '',
+      shortName: json['shortName'] as String? ?? '',
+      category: json['category'] as String? ?? '',
+      unit: json['unit'] as String? ?? '',
+      currency: json['currency'] as String? ?? 'USD',
+      icon: json['icon'] as String? ?? 'metal',
+      ltp: _num(json['ltp']),
+      change: _num(json['change']),
+      changePercent: _num(json['changePercent']),
+      high: _num(json['high']),
+      low: _num(json['low']),
+      previousClose: _num(json['previousClose']),
+      usdInrRate: _num(json['usdInrRate']) > 0 ? _num(json['usdInrRate']) : 83.5,
+    );
+
+CommodityHoldingModel parseCommodityHolding(Map<String, dynamic> json) => CommodityHoldingModel(
+      commodityId: json['commodityId'] as String? ?? '',
+      name: json['name'] as String? ?? '',
+      shortName: json['shortName'] as String? ?? '',
+      unit: json['unit'] as String? ?? '',
+      quantity: _int(json['quantity']),
+      avgPriceUsd: _num(json['avgPriceUsd']),
+      ltpUsd: _num(json['ltpUsd']),
+      investedInr: _num(json['investedInr']),
+      currentValueInr: _num(json['currentValueInr']),
+      pnlInr: _num(json['pnlInr']),
+      pnlPercent: _num(json['pnlPercent']),
+    );
+
+CommodityTradeModel parseCommodityTrade(Map<String, dynamic> json) => CommodityTradeModel(
+      id: json['id']?.toString() ?? '',
+      commodityId: json['commodityId'] as String? ?? '',
+      name: json['name'] as String? ?? '',
+      shortName: json['shortName'] as String? ?? '',
+      unit: json['unit'] as String? ?? '',
+      side: json['side'] as String? ?? '',
+      quantity: _int(json['quantity']),
+      priceUsd: _num(json['priceUsd']),
+      amountInr: _num(json['amountInr']),
+      usdInrRate: _num(json['usdInrRate']),
+      time: _date(json['time']),
+      status: json['status'] as String? ?? '',
+      orderValueUsd: _num(json['orderValueUsd']),
+      ltpUsd: _num(json['ltpUsd']),
+      avgCostUsd: json['avgCostUsd'] != null ? _num(json['avgCostUsd']) : null,
+      realizedPnlInr: json['realizedPnlInr'] != null ? _num(json['realizedPnlInr']) : null,
+      holdingQty: json['holdingQty'] != null ? _int(json['holdingQty']) : null,
+      holdingAvgPriceUsd:
+          json['holdingAvgPriceUsd'] != null ? _num(json['holdingAvgPriceUsd']) : null,
+    );
+
+OptionHoldingModel parseOptionHolding(Map<String, dynamic> json) => OptionHoldingModel(
+      underlying: json['underlying'] as String? ?? '',
+      assetClass: json['assetClass'] as String? ?? 'equity_fno',
+      strike: _num(json['strike']),
+      optionType: json['optionType'] as String? ?? '',
+      expiry: _date(json['expiry']),
+      contractLabel: json['contractLabel'] as String? ?? '',
+      quantity: _int(json['quantity']),
+      avgPremium: _num(json['avgPremium']),
+      lotSize: _int(json['lotSize']),
+    );
+
+OptionTradeModel parseOptionTrade(Map<String, dynamic> json) => OptionTradeModel(
+      id: json['id']?.toString() ?? '',
+      underlying: json['underlying'] as String? ?? '',
+      assetClass: json['assetClass'] as String? ?? 'equity_fno',
+      strike: _num(json['strike']),
+      optionType: json['optionType'] as String? ?? '',
+      expiry: _date(json['expiry']),
+      contractLabel: json['contractLabel'] as String? ?? '',
+      side: json['side'] as String? ?? '',
+      quantity: _int(json['quantity']),
+      premium: _num(json['premium']),
+      lotSize: _int(json['lotSize']),
+      amountInr: _num(json['amountInr']),
+      time: _date(json['time']),
+      status: json['status'] as String? ?? '',
+      avgPremium: json['avgPremium'] != null ? _num(json['avgPremium']) : null,
+      realizedPnlInr: json['realizedPnlInr'] != null ? _num(json['realizedPnlInr']) : null,
+      holdingQty: json['holdingQty'] != null ? _int(json['holdingQty']) : null,
     );
 
 AllocationItem parseAllocation(Map<String, dynamic> json) => AllocationItem(
@@ -351,6 +446,73 @@ AiMessageModel parseAiMessage(Map<String, dynamic> json) => AiMessageModel(
       time: _date(json['createdAt'] ?? json['time']),
     );
 
+Color _goalColor(String? hex) {
+  if (hex == null || hex.isEmpty) return const Color(0xFF9333EA);
+  final h = hex.replaceFirst('#', '');
+  if (h.length == 6) {
+    return Color(int.parse('FF$h', radix: 16));
+  }
+  return const Color(0xFF9333EA);
+}
+
+GoalTemplateModel parseGoalTemplate(Map<String, dynamic> json) => GoalTemplateModel(
+      id: json['id'] as String? ?? '',
+      category: json['category'] as String? ?? '',
+      name: json['name'] as String? ?? '',
+      tagline: json['tagline'] as String? ?? '',
+      icon: json['icon'] as String? ?? 'savings',
+      color: _goalColor(json['color'] as String?),
+      minTarget: _num(json['minTarget'] ?? json['min_target']),
+      suggestedMonthly: _num(json['suggestedMonthly'] ?? json['suggested_monthly']),
+      minDurationMonths: (json['minDurationMonths'] ?? json['min_duration_months'] ?? 3) as int,
+      maxDurationMonths: (json['maxDurationMonths'] ?? json['max_duration_months'] ?? 24) as int,
+    );
+
+GoalReturnTierModel parseGoalReturnTier(Map<String, dynamic> json) => GoalReturnTierModel(
+      id: json['id'] as String? ?? '',
+      name: json['name'] as String? ?? '',
+      tagline: json['tagline'] as String? ?? '',
+      minMonthly: _num(json['minMonthly'] ?? json['min_monthly']),
+      maxMonthly: json['maxMonthly'] == null && json['max_monthly'] == null
+          ? null
+          : _num(json['maxMonthly'] ?? json['max_monthly']),
+      annualReturnRate: _num(json['annualReturnRate'] ?? json['annual_return_rate']),
+      badge: json['badge'] as String? ?? '',
+      color: _goalColor(json['color'] as String?),
+    );
+
+UserGoalPlanModel parseUserGoalPlan(Map<String, dynamic> json) => UserGoalPlanModel(
+      id: json['id'] as String? ?? '',
+      category: json['category'] as String? ?? '',
+      title: json['title'] as String? ?? '',
+      targetAmount: _num(json['targetAmount'] ?? json['target_amount']),
+      monthlyContribution: _num(json['monthlyContribution'] ?? json['monthly_contribution']),
+      durationMonths: (json['durationMonths'] ?? json['duration_months'] ?? 0) as int,
+      accumulatedAmount: _num(json['accumulatedAmount'] ?? json['accumulated_amount']),
+      returnsEarned: _num(json['returnsEarned'] ?? json['returns_earned']),
+      annualReturnRate: _num(json['annualReturnRate'] ?? json['annual_return_rate']) == 0
+          ? 8
+          : _num(json['annualReturnRate'] ?? json['annual_return_rate']),
+      projectedMaturityValue: _num(json['projectedMaturityValue'] ?? json['projected_maturity_value']),
+      projectedReturns: _num(json['projectedReturns'] ?? json['projected_returns']),
+      installmentsDone: (json['installmentsDone'] ?? json['installments_done'] ?? 0) as int,
+      totalInstallments: (json['totalInstallments'] ?? json['total_installments'] ?? 0) as int,
+      progressPercent: _num(json['progressPercent'] ?? json['progress_percent']),
+      nextContributionDate: json['nextContributionDate'] as String? ?? json['next_contribution_date'] as String?,
+      targetDate: json['targetDate'] as String? ?? json['target_date'] as String?,
+      status: json['status'] as String? ?? 'active',
+      referenceId: json['referenceId'] as String? ?? json['reference_id'] as String? ?? '',
+      returnTier: json['returnTier'] as String? ?? json['return_tier'] as String? ?? 'starter',
+      color: _goalColor(json['color'] as String?),
+      canWithdraw: json['canWithdraw'] == true || json['can_withdraw'] == true,
+      isDue: json['isDue'] == true || json['is_due'] == true,
+    );
+
+GoalRemindersModel parseGoalReminders(Map<String, dynamic> json) => GoalRemindersModel(
+      due: parseList(json['due'], parseUserGoalPlan),
+      activeCount: (json['activeCount'] ?? json['active_count'] ?? 0) as int,
+    );
+
 List<T> parseList<T>(dynamic data, T Function(Map<String, dynamic>) parser) {
   if (data is! List) return [];
   final out = <T>[];
@@ -362,3 +524,62 @@ List<T> parseList<T>(dynamic data, T Function(Map<String, dynamic>) parser) {
   }
   return out;
 }
+
+IpoEventModel parseIpoEvent(Map<String, dynamic> json) => IpoEventModel(
+      id: json['id'] as String? ?? '',
+      companyName: json['companyName'] as String? ?? '',
+      symbol: json['symbol'] as String? ?? '',
+      sector: json['sector'] as String? ?? '',
+      status: json['status'] as String? ?? 'upcoming',
+      openDate: json['openDate'] != null
+          ? DateFormatter.parseDateOnly(json['openDate'] as String)
+          : null,
+      closeDate: json['closeDate'] != null
+          ? DateFormatter.parseDateOnly(json['closeDate'] as String)
+          : null,
+      listingDate: json['listingDate'] != null
+          ? DateFormatter.parseDateOnly(json['listingDate'] as String)
+          : null,
+      priceBandMin: _num(json['priceBandMin']),
+      priceBandMax: _num(json['priceBandMax']),
+      issueSizeCr: _num(json['issueSizeCr']),
+      lotSize: _int(json['lotSize']),
+      minInvestment: _num(json['minInvestment']),
+      gmpPercent: json['gmpPercent'] != null ? _num(json['gmpPercent']) : null,
+      subscriptionTimes: json['subscriptionTimes'] as String?,
+      exchange: json['exchange'] as String? ?? 'NSE',
+      isFeatured: json['isFeatured'] as bool? ?? false,
+      description: json['description'] as String? ?? '',
+      listingPrice: _num(json['listingPrice'] ?? json['priceBandMax']),
+    );
+
+IpoHoldingModel parseIpoHolding(Map<String, dynamic> json) => IpoHoldingModel(
+      ipoId: json['ipoId'] as String? ?? '',
+      companyName: json['companyName'] as String? ?? '',
+      symbol: json['symbol'] as String? ?? '',
+      sector: json['sector'] as String? ?? '',
+      ipoStatus: json['ipoStatus'] as String? ?? '',
+      lots: _int(json['lots']),
+      quantity: _int(json['quantity']),
+      avgPrice: _num(json['avgPrice']),
+      ltp: _num(json['ltp']),
+      investedInr: _num(json['investedInr']),
+      currentValueInr: _num(json['currentValueInr']),
+      pnlInr: _num(json['pnlInr']),
+      pnlPercent: _num(json['pnlPercent']),
+      canSell: json['canSell'] as bool? ?? false,
+    );
+
+IpoTradeModel parseIpoTrade(Map<String, dynamic> json) => IpoTradeModel(
+      id: json['id']?.toString() ?? '',
+      ipoId: json['ipoId'] as String? ?? '',
+      companyName: json['companyName'] as String? ?? '',
+      symbol: json['symbol'] as String? ?? '',
+      side: json['side'] as String? ?? '',
+      lots: _int(json['lots']),
+      quantity: _int(json['quantity']),
+      price: _num(json['price']),
+      amountInr: _num(json['amountInr']),
+      time: _date(json['time']),
+      status: json['status'] as String? ?? '',
+    );

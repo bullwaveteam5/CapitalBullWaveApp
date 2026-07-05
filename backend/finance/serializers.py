@@ -16,6 +16,7 @@ class InvestmentPlanSerializer(CamelCaseModelSerializer):
         model = InvestmentPlan
         fields = (
             'id', 'name', 'minimum_investment', 'monthly_return_rate',
+            'monthly_return_min', 'monthly_return_max',
             'annual_return_rate', 'description', 'is_featured',
         )
 
@@ -43,6 +44,7 @@ class PortfolioSerializer(CamelCaseSerializer):
     holdings_count = serializers.IntegerField(required=False)
     stocks_invested = serializers.DecimalField(max_digits=14, decimal_places=2, required=False)
     stocks_value = serializers.DecimalField(max_digits=14, decimal_places=2, required=False)
+    wallet_balance = serializers.DecimalField(max_digits=14, decimal_places=2, required=False)
 
 
 class WalletSerializer(CamelCaseModelSerializer):

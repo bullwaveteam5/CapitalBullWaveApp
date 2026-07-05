@@ -12,8 +12,8 @@ from rest_framework.views import APIView
 
 from engagement.models import MarketIndex, Notification
 from engagement.serializers import MarketIndexSerializer
-from stocks.market_data_service import refresh_all_indices
 from stocks.news_service import fetch_news_headlines
+from .goal_service import get_user_goals
 from .models import (
     InvestmentFaq,
     InvestmentPlan,
@@ -40,19 +40,29 @@ class HomeView(APIView):
 
     def get(self, request):
         user = request.user
-        portfolio = _build_portfolio(user)
+        portfolio = _build_portfolio(user, refresh_stocks=False)
+        wallet, _ = Wallet.objects.get_or_create(user=user)
+        portfolio['wallet_balance'] = wallet.balance
+
+        indices = list(MarketIndex.objects.all().order_by('id')[:6])
+        recent = user.transactions.all()[:5]
+
         try:
-            indices = refresh_all_indices()
+            news = fetch_news_headlines(limit=5)
         except Exception:
-            indices = MarketIndex.objects.all()
+            news = []
+
         return Response(
             {
                 'portfolio': PortfolioSerializer(portfolio).data,
                 'featuredPlans': InvestmentPlanSerializer(
-                    InvestmentPlan.objects.filter(is_featured=True, is_active=True), many=True
+                    InvestmentPlan.objects.filter(is_featured=True, is_active=True),
+                    many=True,
                 ).data,
+                'goalPlans': get_user_goals(user)[:5],
                 'marketIndices': MarketIndexSerializer(indices, many=True).data,
-                'marketNews': fetch_news_headlines(limit=5),
+                'marketNews': news,
+                'recentActivity': TransactionSerializer(recent, many=True).data,
             }
         )
 
@@ -324,10 +334,10 @@ class TransactionListView(APIView):
         return Response(TransactionSerializer(qs, many=True).data)
 
 
-def _build_portfolio(user):
+def _build_portfolio(user, *, refresh_stocks=False):
     from stocks.portfolio_service import get_stock_summary
 
-    stock = get_stock_summary(user, refresh=True)
+    stock = get_stock_summary(user, refresh=refresh_stocks)
     stock_invested = Decimal(str(stock['total_invested']))
     stock_value = Decimal(str(stock['current_value']))
     stock_pnl = Decimal(str(stock['total_pnl']))

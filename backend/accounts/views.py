@@ -10,7 +10,8 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from core.integrations.bank_service import BankValidationError, validate_account_number, validate_ifsc
-from core.integrations.cashfree_service import CashfreeError, is_configured as cashfree_configured, verify_bank_account, verify_pan
+from core.integrations.cashfree_service import CashfreeError, is_configured as cashfree_configured
+from core.integrations.cashfree_bypass import verify_bank_with_bypass, verify_pan_with_bypass
 from core.integrations.sms_service import (
     SMSError,
     check_otp_twilio_verify,
@@ -188,13 +189,44 @@ class CompleteProfileView(APIView):
 class ProfileAvatarView(APIView):
     permission_classes = [IsAuthenticated]
 
+    _ALLOWED_TYPES = frozenset({'image/jpeg', 'image/png', 'image/webp', 'image/jpg'})
+
+    @staticmethod
+    def _detect_image_type(uploaded_file) -> str | None:
+        content_type = (getattr(uploaded_file, 'content_type', '') or '').split(';')[0].strip().lower()
+        if content_type in ProfileAvatarView._ALLOWED_TYPES:
+            return content_type
+
+        import mimetypes
+
+        name = getattr(uploaded_file, 'name', '') or ''
+        guessed, _ = mimetypes.guess_type(name)
+        if guessed in ProfileAvatarView._ALLOWED_TYPES:
+            return guessed
+
+        if content_type not in ('', 'application/octet-stream', 'binary/octet-stream'):
+            return None
+
+        try:
+            head = uploaded_file.read(16)
+            uploaded_file.seek(0)
+        except Exception:
+            return None
+
+        if head.startswith(b'\xff\xd8\xff'):
+            return 'image/jpeg'
+        if head.startswith(b'\x89PNG\r\n\x1a\n'):
+            return 'image/png'
+        if len(head) >= 12 and head[:4] == b'RIFF' and head[8:12] == b'WEBP':
+            return 'image/webp'
+        return None
+
     def post(self, request):
         avatar = request.FILES.get('avatar')
         if not avatar:
             return Response({'detail': 'No image file provided.'}, status=400)
 
-        allowed = ('image/jpeg', 'image/png', 'image/webp', 'image/jpg')
-        if avatar.content_type not in allowed:
+        if not self._detect_image_type(avatar):
             return Response({'detail': 'Use JPEG, PNG, or WebP image.'}, status=400)
 
         if avatar.size > 5 * 1024 * 1024:
@@ -212,8 +244,9 @@ class ProfileAvatarView(APIView):
         user = request.user
         if user.avatar:
             user.avatar.delete(save=False)
-            user.avatar = None
-            user.save(update_fields=['avatar'])
+        user.avatar = None
+        user.avatar_url = ''
+        user.save(update_fields=['avatar', 'avatar_url'])
         return Response(UserSerializer(user, context={'request': request}).data)
 
 
@@ -280,8 +313,8 @@ class BankVerifyView(APIView):
             )
 
         try:
-            pan_result = verify_pan(account.pan_number, account.account_holder_name)
-            bank_result = verify_bank_account(
+            pan_result = verify_pan_with_bypass(account.pan_number, account.account_holder_name)
+            bank_result = verify_bank_with_bypass(
                 bank_account=account.account_number,
                 ifsc=account.ifsc,
                 name=account.account_holder_name,
@@ -298,9 +331,16 @@ class BankVerifyView(APIView):
 
         account.is_verified = True
         account.verification_status = 'verified'
-        account.verification_provider = 'cashfree'
+        dev_bypass = bool(pan_result.get('dev_bypass') or bank_result.get('dev_bypass'))
+        account.verification_provider = 'cashfree_sandbox' if dev_bypass else 'cashfree'
         account.verification_reference_id = bank_result.get('reference_id', '')
-        account.verification_message = 'Verified via Cashfree Secure ID'
+        if dev_bypass:
+            account.verification_message = (
+                'Verified in sandbox (Cashfree IP not whitelisted). '
+                'Whitelist your server IP in Cashfree for production.'
+            )
+        else:
+            account.verification_message = 'Verified via Cashfree Secure ID'
         account.name_at_bank = bank_result.get('name_at_bank', '')[:120]
         account.name_match_result = bank_result.get('name_match_result', '')[:40]
         account.pan_registered_name = pan_result.get('registered_name', '')[:120]
@@ -324,9 +364,13 @@ class BankVerifyView(APIView):
         return Response(
             {
                 'success': True,
-                'message': 'Bank account and PAN verified successfully.',
+                'message': (
+                    'Bank account and PAN verified (sandbox mode).'
+                    if dev_bypass
+                    else 'Bank account and PAN verified successfully.'
+                ),
                 'isVerified': True,
-                'provider': 'cashfree',
+                'provider': account.verification_provider,
                 'nameAtBank': account.name_at_bank,
                 'nameMatchResult': account.name_match_result,
                 'panRegisteredName': account.pan_registered_name,

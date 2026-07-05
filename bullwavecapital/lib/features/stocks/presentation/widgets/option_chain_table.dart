@@ -38,8 +38,18 @@ List<OptionStrikeRow> mergeOptionChain(List<OptionContractModel> contracts) {
 class OptionChainTable extends StatelessWidget {
   final List<OptionContractModel> contracts;
   final double spot;
+  final int strikeDecimals;
+  final String currencySymbol;
+  final void Function(OptionContractModel contract)? onContractTap;
 
-  const OptionChainTable({super.key, required this.contracts, required this.spot});
+  const OptionChainTable({
+    super.key,
+    required this.contracts,
+    required this.spot,
+    this.strikeDecimals = 0,
+    this.currencySymbol = '',
+    this.onContractTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -70,6 +80,9 @@ class OptionChainTable extends StatelessWidget {
                 maxCallOi: maxCallOi,
                 maxPutOi: maxPutOi,
                 colors: colors,
+                strikeDecimals: strikeDecimals,
+                currencySymbol: currencySymbol,
+                onContractTap: onContractTap,
               );
             },
           ),
@@ -155,6 +168,9 @@ class _StrikeRow extends StatelessWidget {
   final int maxCallOi;
   final int maxPutOi;
   final AppThemeExtension colors;
+  final int strikeDecimals;
+  final String currencySymbol;
+  final void Function(OptionContractModel contract)? onContractTap;
 
   const _StrikeRow({
     required this.row,
@@ -163,6 +179,9 @@ class _StrikeRow extends StatelessWidget {
     required this.maxCallOi,
     required this.maxPutOi,
     required this.colors,
+    this.strikeDecimals = 0,
+    this.currencySymbol = '',
+    this.onContractTap,
   });
 
   @override
@@ -189,13 +208,19 @@ class _StrikeRow extends StatelessWidget {
       child: Row(
         children: [
           _OiCell(oi: call?.oi ?? 0, maxOi: maxCallOi, align: TextAlign.end, colors: colors),
-          _LtpCell(contract: call, isCall: true, colors: colors),
+          _LtpCell(
+            contract: call,
+            isCall: true,
+            colors: colors,
+            currencySymbol: currencySymbol,
+            onTap: call != null && onContractTap != null ? () => onContractTap!(call) : null,
+          ),
           Expanded(
             flex: 3,
             child: Column(
               children: [
                 Text(
-                  row.strike.toStringAsFixed(0),
+                  row.strike.toStringAsFixed(strikeDecimals),
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontWeight: FontWeight.w800,
@@ -215,7 +240,13 @@ class _StrikeRow extends StatelessWidget {
               ],
             ),
           ),
-          _LtpCell(contract: put, isCall: false, colors: colors),
+          _LtpCell(
+            contract: put,
+            isCall: false,
+            colors: colors,
+            currencySymbol: currencySymbol,
+            onTap: put != null && onContractTap != null ? () => onContractTap!(put) : null,
+          ),
           _OiCell(oi: put?.oi ?? 0, maxOi: maxPutOi, align: TextAlign.start, colors: colors),
         ],
       ),
@@ -227,8 +258,16 @@ class _LtpCell extends StatelessWidget {
   final OptionContractModel? contract;
   final bool isCall;
   final AppThemeExtension colors;
+  final String currencySymbol;
+  final VoidCallback? onTap;
 
-  const _LtpCell({required this.contract, required this.isCall, required this.colors});
+  const _LtpCell({
+    required this.contract,
+    required this.isCall,
+    required this.colors,
+    this.currencySymbol = '',
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -238,25 +277,40 @@ class _LtpCell extends StatelessWidget {
     final c = contract!;
     final changeColor = c.change >= 0 ? AppColors.green : AppColors.red;
 
+    final content = Column(
+      crossAxisAlignment: isCall ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      children: [
+        Text(
+          '$currencySymbol${c.ltp.toStringAsFixed(2)}',
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            fontSize: 13,
+            color: isCall ? AppColors.green : AppColors.red,
+          ),
+        ),
+        Text(
+          '${c.change >= 0 ? '+' : ''}${c.change.toStringAsFixed(2)}',
+          style: TextStyle(fontSize: 10, color: changeColor, fontWeight: FontWeight.w600),
+        ),
+      ],
+    );
+
     return Expanded(
       flex: 2,
-      child: Column(
-        crossAxisAlignment: isCall ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-        children: [
-          Text(
-            c.ltp.toStringAsFixed(2),
-            style: TextStyle(
-              fontWeight: FontWeight.w800,
-              fontSize: 13,
-              color: isCall ? AppColors.green : AppColors.red,
+      child: onTap == null
+          ? content
+          : Material(
+              color: (isCall ? AppColors.green : AppColors.red).withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(8),
+              child: InkWell(
+                onTap: onTap,
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                  child: content,
+                ),
+              ),
             ),
-          ),
-          Text(
-            '${c.change >= 0 ? '+' : ''}${c.change.toStringAsFixed(2)}',
-            style: TextStyle(fontSize: 10, color: changeColor, fontWeight: FontWeight.w600),
-          ),
-        ],
-      ),
     );
   }
 }

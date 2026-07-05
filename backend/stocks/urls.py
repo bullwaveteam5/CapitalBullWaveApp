@@ -1,9 +1,21 @@
 from django.urls import path
 
 from .views import (
+    CommodityDetailView,
+    CommodityHoldingsView,
+    CommodityListView,
+    CommodityOptionChainView,
+    CommodityOrdersView,
+    OptionHoldingsView,
+    OptionOrdersView,
     DividendsView,
+    IpoCalendarView,
+    IpoHoldingsView,
+    IpoOrdersView,
     MarketLiveView,
     OptionChainView,
+    OptionHoldingsView,
+    OptionOrdersView,
     PaperTradingOrdersView,
     PortfolioAnalyticsView,
     PortfolioHoldingsView,
@@ -23,6 +35,11 @@ from .views import (
 
 urlpatterns = [
     path('market/live/', MarketLiveView.as_view(), name='market-live'),
+    path('market/commodities/', CommodityListView.as_view(), name='commodity-list'),
+    path('market/commodities/orders/', CommodityOrdersView.as_view(), name='commodity-orders'),
+    path('market/commodities/holdings/', CommodityHoldingsView.as_view(), name='commodity-holdings'),
+    path('market/commodities/<str:commodity_id>/options/', CommodityOptionChainView.as_view(), name='commodity-option-chain'),
+    path('market/commodities/<str:commodity_id>/', CommodityDetailView.as_view(), name='commodity-detail'),
     path('stocks/search/', StockSearchView.as_view(), name='stock-search'),
     path('stocks/<str:symbol>/quote/', StockQuoteView.as_view(), name='stock-quote'),
     path('stocks/<str:symbol>/candles/', StockCandlesView.as_view(), name='stock-candles'),
@@ -37,7 +54,12 @@ urlpatterns = [
     path('sip/', SipPlansView.as_view(), name='sip-plans'),
     path('sip/<uuid:plan_id>/', SipPlanDetailView.as_view(), name='sip-plan-detail'),
     path('options/<str:symbol>/chain/', OptionChainView.as_view(), name='option-chain'),
+    path('options/orders/', OptionOrdersView.as_view(), name='option-orders'),
+    path('options/holdings/', OptionHoldingsView.as_view(), name='option-holdings'),
     path('paper-trading/orders/', PaperTradingOrdersView.as_view(), name='paper-trading'),
     path('screener/', ScreenerView.as_view(), name='screener'),
     path('dividends/', DividendsView.as_view(), name='dividends'),
+    path('ipo/calendar/', IpoCalendarView.as_view(), name='ipo-calendar'),
+    path('ipo/holdings/', IpoHoldingsView.as_view(), name='ipo-holdings'),
+    path('ipo/orders/', IpoOrdersView.as_view(), name='ipo-orders'),
 ]

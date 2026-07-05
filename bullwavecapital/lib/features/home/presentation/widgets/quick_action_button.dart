@@ -24,13 +24,20 @@ class QuickActionButton extends StatelessWidget {
     return ScaleTap(
       onTap: onTap,
       child: Container(
-        width: 80,
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 6),
-        decoration: AppDecorations.card(context),
+        width: 84,
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+        decoration: AppDecorations.premiumTile(context, accent: color),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: color, size: 22),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: color, size: 22),
+            ),
             const SizedBox(height: 8),
             Text(
               label,

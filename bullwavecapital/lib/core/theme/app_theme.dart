@@ -18,9 +18,9 @@ class AppTheme {
 
     final colorScheme = ColorScheme(
       brightness: isDark ? Brightness.dark : Brightness.light,
-      primary: AppColors.brandOrange,
+      primary: AppColors.brandPrimary,
       onPrimary: Colors.white,
-      secondary: AppColors.blue,
+      secondary: AppColors.brandPink,
       onSecondary: Colors.white,
       error: AppColors.red,
       onError: Colors.white,
@@ -61,7 +61,7 @@ class AppTheme {
         ),
       ),
       listTileTheme: ListTileThemeData(
-        iconColor: AppColors.brandOrange,
+        iconColor: AppColors.brandPrimary,
         textColor: colors.textPrimary,
         titleTextStyle: GoogleFonts.plusJakartaSans(
           fontSize: 15,
@@ -75,11 +75,11 @@ class AppTheme {
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: colors.surface,
-        indicatorColor: AppColors.brandOrange.withValues(alpha: 0.15),
+        indicatorColor: AppColors.brandPrimary.withValues(alpha: 0.18),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
             return TextStyle(
-              color: AppColors.brandOrange,
+              color: AppColors.brandPink,
               fontWeight: FontWeight.w700,
               fontSize: 12,
             );
@@ -89,7 +89,7 @@ class AppTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.brandOrange,
+          backgroundColor: AppColors.brandPrimary,
           foregroundColor: Colors.white,
           minimumSize: const Size(0, AppDimensions.buttonHeight),
           shape: RoundedRectangleBorder(
@@ -131,7 +131,7 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
-          borderSide: const BorderSide(color: AppColors.brandOrange, width: 2),
+          borderSide: const BorderSide(color: AppColors.brandPrimary, width: 2),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
@@ -142,7 +142,7 @@ class AppTheme {
       ),
       checkboxTheme: CheckboxThemeData(
         fillColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) return AppColors.brandOrange;
+          if (states.contains(WidgetState.selected)) return AppColors.brandPrimary;
           return Colors.transparent;
         }),
         checkColor: WidgetStateProperty.all(Colors.white),
@@ -151,7 +151,7 @@ class AppTheme {
       ),
       chipTheme: ChipThemeData(
         backgroundColor: colors.surfaceSecondary,
-        selectedColor: AppColors.brandOrange.withValues(alpha: 0.15),
+        selectedColor: AppColors.brandPink.withValues(alpha: 0.18),
         labelStyle: GoogleFonts.plusJakartaSans(fontSize: 13, color: colors.textPrimary),
         side: BorderSide(color: colors.border),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
@@ -164,7 +164,7 @@ class AppTheme {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
       splashFactory: InkRipple.splashFactory,
-      highlightColor: AppColors.brandOrange.withValues(alpha: 0.06),
+      highlightColor: AppColors.brandPink.withValues(alpha: 0.08),
     );
   }
 }

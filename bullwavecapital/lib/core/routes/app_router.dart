@@ -20,6 +20,12 @@ import '../../features/authentication/presentation/screens/complete_profile_scre
 import '../../features/home/presentation/screens/home_screen.dart';
 
 import '../../features/investment/presentation/screens/investment_details_screen.dart';
+import '../../features/investment/presentation/screens/featured_plan_screen.dart';
+import '../../features/investment/presentation/screens/featured_plans_list_screen.dart';
+import '../../features/goals/presentation/screens/goal_plans_screen.dart';
+import '../../features/goals/presentation/screens/create_goal_screen.dart';
+import '../../features/goals/presentation/screens/goal_detail_screen.dart';
+import '../../models/investment_model.dart';
 
 import '../../features/stocks/presentation/screens/stock_markets_screen.dart';
 
@@ -37,13 +43,20 @@ import '../../features/stocks/presentation/screens/sip_tracker_screen.dart';
 
 import '../../features/stocks/presentation/screens/option_chain_screen.dart';
 
+import '../../features/fno/presentation/screens/fno_verification_screen.dart';
+
 import '../../features/stocks/presentation/screens/paper_trading_screen.dart';
 
 import '../../features/stocks/presentation/screens/portfolio_analytics_screen.dart';
 
 import '../../features/stocks/presentation/screens/dividend_tracker_screen.dart';
 
+import '../../features/stocks/presentation/screens/ipo_calendar_screen.dart';
+
 import '../../features/stocks/presentation/screens/ai_assistant_screen.dart';
+import '../../features/stocks/presentation/screens/commodity_detail_screen.dart';
+import '../../features/stocks/presentation/screens/commodity_option_chain_screen.dart';
+import '../../features/stocks/presentation/screens/commodity_market_screen.dart';
 
 import '../../features/portfolio/presentation/screens/portfolio_screen.dart';
 
@@ -144,6 +157,8 @@ class AppRouter {
 
       path == AppRoutes.kycSuccess ||
 
+      path == AppRoutes.fnoVerification ||
+
       path == AppRoutes.bankVerification;
 
 
@@ -196,6 +211,13 @@ class AppRouter {
 
       AppRoutes.investmentDetails,
 
+      AppRoutes.featuredPlan,
+
+      AppRoutes.featuredPlansList,
+      AppRoutes.goalPlans,
+      AppRoutes.createGoal,
+      AppRoutes.goalDetail,
+
       AppRoutes.stockDetail,
 
       AppRoutes.watchlist,
@@ -216,11 +238,24 @@ class AppRouter {
 
       AppRoutes.dividendTracker,
 
+      AppRoutes.ipoCalendar,
+
       AppRoutes.aiAssistant,
+
+      AppRoutes.commodities,
+
+      AppRoutes.commodityDetail,
+
+      AppRoutes.commodityOptionChain,
 
     };
 
-    return gated.contains(path);
+    return gated.contains(path) ||
+        path.startsWith('${AppRoutes.featuredPlan}/') ||
+        path == AppRoutes.featuredPlansList ||
+        path == AppRoutes.goalPlans ||
+        path == AppRoutes.createGoal ||
+        path == AppRoutes.goalDetail;
 
   }
 
@@ -561,6 +596,36 @@ class AppRouter {
           ),
 
           GoRoute(
+            path: AppRoutes.featuredPlansList,
+            builder: (context, state) => const FeaturedPlansListScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.goalPlans,
+            builder: (context, state) => const GoalPlansScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.createGoal,
+            builder: (context, state) => CreateGoalScreen(
+              category: state.uri.queryParameters['category'] ?? 'house',
+            ),
+          ),
+          GoRoute(
+            path: AppRoutes.goalDetail,
+            builder: (context, state) => GoalDetailScreen(
+              goalId: state.uri.queryParameters['id'] ?? '',
+            ),
+          ),
+          GoRoute(
+            path: '${AppRoutes.featuredPlan}/:planId',
+
+            builder: (context, state) => FeaturedPlanScreen(
+              planId: state.pathParameters['planId'] ?? 'PLAN001',
+              initialPlan: state.extra is InvestmentPlanModel ? state.extra as InvestmentPlanModel : null,
+            ),
+
+          ),
+
+          GoRoute(
 
             path: AppRoutes.bankDetails,
 
@@ -652,6 +717,16 @@ class AppRouter {
 
           GoRoute(
 
+            path: AppRoutes.fnoVerification,
+
+            parentNavigatorKey: _rootNavigatorKey,
+
+            builder: (context, state) => const FnoVerificationScreen(),
+
+          ),
+
+          GoRoute(
+
             path: AppRoutes.optionChain,
 
             parentNavigatorKey: _rootNavigatorKey,
@@ -698,11 +773,63 @@ class AppRouter {
 
           GoRoute(
 
+            path: AppRoutes.ipoCalendar,
+
+            parentNavigatorKey: _rootNavigatorKey,
+
+            builder: (context, state) => const IpoCalendarScreen(),
+
+          ),
+
+          GoRoute(
+
             path: AppRoutes.aiAssistant,
 
             parentNavigatorKey: _rootNavigatorKey,
 
             builder: (context, state) => const AiAssistantScreen(),
+
+          ),
+
+          GoRoute(
+
+            path: AppRoutes.commodities,
+
+            parentNavigatorKey: _rootNavigatorKey,
+
+            builder: (context, state) => const CommodityMarketScreen(),
+
+          ),
+
+          GoRoute(
+
+            path: AppRoutes.commodityDetail,
+
+            parentNavigatorKey: _rootNavigatorKey,
+
+            builder: (context, state) {
+
+              final commodityId = state.uri.queryParameters['commodityId'] ?? 'GOLD';
+
+              return CommodityDetailScreen(commodityId: commodityId);
+
+            },
+
+          ),
+
+          GoRoute(
+
+            path: AppRoutes.commodityOptionChain,
+
+            parentNavigatorKey: _rootNavigatorKey,
+
+            builder: (context, state) {
+
+              final commodityId = state.uri.queryParameters['commodityId'] ?? 'GOLD';
+
+              return CommodityOptionChainScreen(commodityId: commodityId);
+
+            },
 
           ),
 

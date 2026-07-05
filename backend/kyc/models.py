@@ -120,6 +120,48 @@ class KYCRequestImage(models.Model):
         return f'KYC image {self.request_id} #{self.sort_order}'
 
 
+class FnoEligibilityRequest(models.Model):
+    """F&O eligibility proof — admin review or instant portfolio check."""
+
+    class ProofType(models.TextChoices):
+        BANK_STATEMENT = 'bank_statement', '6-Month Bank Statement'
+        FORM16 = 'form16', 'FORM 16'
+        ITR = 'itr', 'ITR Form'
+        PORTFOLIO_HOLDING = 'portfolio_holding', '₹50,000 Portfolio Holding'
+
+    class Status(models.TextChoices):
+        PENDING = 'PENDING', 'Pending'
+        APPROVED = 'APPROVED', 'Approved'
+        REJECTED = 'REJECTED', 'Rejected'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='fno_requests'
+    )
+    proof_type = models.CharField(max_length=32, choices=ProofType.choices)
+    document = models.FileField(upload_to='fno/proofs/%Y/%m/', blank=True, null=True)
+    portfolio_value = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+    rejection_reason = models.CharField(max_length=500, blank=True, default='')
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='fno_reviews',
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [models.Index(fields=['status', 'created_at'])]
+
+    def __str__(self):
+        return f'FNO {self.proof_type} ({self.status}) — {self.user_id}'
+
+
 class VerificationAuditLog(models.Model):
     class Step(models.TextChoices):
         PAN = 'pan', 'PAN'

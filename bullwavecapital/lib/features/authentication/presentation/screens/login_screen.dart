@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import '../../../../core/constants/assets.dart';
 import '../../../../core/constants/dimensions.dart';
 import '../../../../core/constants/routes.dart';
 import '../../../../core/theme/app_theme_extension.dart';
 import '../../../../core/theme/colors.dart';
+import '../../../../core/widgets/app_brand_logo.dart';
 import '../../../../core/widgets/primary_button.dart';
 import '../provider/auth_provider.dart';
 
@@ -52,14 +51,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 Center(
                   child: Hero(
                     tag: 'logo',
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: context.appColors.surfaceSecondary,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: SvgPicture.asset(AppAssets.logo, height: 56),
-                    ),
+                    child: AppBrandLogo(size: 80, showShadow: true),
                   ),
                 ),
                 const SizedBox(height: 36),

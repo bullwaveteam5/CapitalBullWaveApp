@@ -24,7 +24,7 @@ class _KycPendingScreenState extends State<KycPendingScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _refresh();
-      _pollTimer = Timer.periodic(const Duration(seconds: 15), (_) => _refresh());
+      _pollTimer = Timer.periodic(const Duration(seconds: 8), (_) => _refresh());
     });
   }
 
@@ -169,7 +169,7 @@ class _KycPendingScreenState extends State<KycPendingScreen> {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    'Approval usually takes 24–48 hours. Once approved, you can buy and sell stocks immediately.',
+                    'Approval usually takes a few minutes. This screen checks automatically every few seconds — or tap refresh (top right).',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: colors.textSecondary),
                   ),
                   if (kyc.error != null) ...[

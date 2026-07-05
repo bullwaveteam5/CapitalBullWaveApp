@@ -6,6 +6,7 @@ import '../../../../core/theme/app_theme_extension.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../models/stock_model.dart';
+import '../../../../core/widgets/modern_icon_badge.dart';
 import '../provider/stock_market_provider.dart';
 
 class StockListTile extends StatelessWidget {
@@ -38,23 +39,7 @@ class StockListTile extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
           child: Row(
             children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: colors.surfaceSecondary,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  stock.symbol.substring(0, 1),
-                  style: TextStyle(
-                    color: colors.textPrimary,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 15,
-                  ),
-                ),
-              ),
+              ModernStockAvatar(symbol: stock.symbol),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -97,11 +82,18 @@ class StockListTile extends StatelessWidget {
                 IconButton(
                   visualDensity: VisualDensity.compact,
                   icon: Icon(
-                    inWatchlist ? Icons.bookmark : Icons.bookmark_outline,
-                    color: inWatchlist ? AppColors.green : colors.textMuted,
-                    size: 20,
+                    inWatchlist ? Icons.bookmark_rounded : Icons.bookmark_outline_rounded,
+                    color: inWatchlist ? AppColors.brandPink : colors.textMuted,
+                    size: 22,
                   ),
-                  onPressed: () => market.toggleWatchlist(stock.symbol),
+                  onPressed: () async {
+                    final err = await market.toggleWatchlist(stock.symbol);
+                    if (context.mounted && err != null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(err), behavior: SnackBarBehavior.floating),
+                      );
+                    }
+                  },
                 ),
               ],
             ],

@@ -17,13 +17,13 @@ class AppDecorations {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                AppColors.brandOrange.withValues(alpha: 0.1),
+                AppColors.brandPrimary.withValues(alpha: 0.12),
                 c.surface,
               ],
             ),
       borderRadius: BorderRadius.circular(16),
       border: Border.all(
-        color: isDark ? c.border : AppColors.brandOrange.withValues(alpha: 0.18),
+        color: isDark ? c.border : AppColors.brandPrimary.withValues(alpha: 0.18),
         width: 1,
       ),
       boxShadow: isDark
@@ -50,30 +50,52 @@ class AppDecorations {
     Color? color,
     bool glow = false,
     Color? glowColor,
+    bool premium = false,
   }) {
     final c = context.appColors;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return BoxDecoration(
       color: color ?? c.surface,
-      borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: c.border.withValues(alpha: isDark ? 1 : 0.85)),
+      borderRadius: BorderRadius.circular(premium ? 18 : 14),
+      border: Border.all(
+        color: premium
+            ? (glowColor ?? AppColors.brandPrimary).withValues(alpha: isDark ? 0.28 : 0.18)
+            : c.border.withValues(alpha: isDark ? 0.85 : 0.7),
+      ),
       boxShadow: glow
           ? [
               BoxShadow(
-                color: (glowColor ?? AppColors.brandOrange).withValues(alpha: 0.12),
-                blurRadius: 16,
+                color: (glowColor ?? AppColors.brandPink).withValues(alpha: 0.22),
+                blurRadius: 20,
+                offset: const Offset(0, 4),
               ),
             ]
           : isDark
               ? []
               : [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.03),
-                    blurRadius: 8,
-                    offset: const Offset(0, 1),
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
                   ),
                 ],
+    );
+  }
+
+  static BoxDecoration premiumTile(BuildContext context, {required Color accent}) {
+    final c = context.appColors;
+    return BoxDecoration(
+      borderRadius: BorderRadius.circular(16),
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          accent.withValues(alpha: 0.14),
+          c.surface,
+        ],
+      ),
+      border: Border.all(color: accent.withValues(alpha: 0.25)),
     );
   }
 
@@ -113,7 +135,7 @@ class AppDecorations {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppColors.brandOrange, width: 1.5),
+        borderSide: const BorderSide(color: AppColors.brandPrimary, width: 1.5),
       ),
     );
   }

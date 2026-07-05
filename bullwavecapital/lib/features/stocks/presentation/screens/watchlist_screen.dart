@@ -88,7 +88,7 @@ class _WatchlistScreenState extends State<WatchlistScreen> {
                     decoration: AppDecorations.card(context),
                     child: Column(
                       children: [
-                        Icon(Icons.star_outline_rounded, size: 56, color: colors.textMuted),
+                        Icon(Icons.bookmarks_rounded, size: 56, color: AppColors.brandPrimary.withValues(alpha: 0.7)),
                         const SizedBox(height: 16),
                         Text(
                           'Your watchlist is empty',
@@ -101,7 +101,7 @@ class _WatchlistScreenState extends State<WatchlistScreen> {
                         const SizedBox(height: 8),
                         Text(
                           market.watchlistError ??
-                              'Star stocks from Markets or stock detail to track them here.',
+                              'Bookmark stocks from Markets or stock detail to track them here.',
                           textAlign: TextAlign.center,
                           style: TextStyle(color: colors.textMuted, fontSize: 13),
                         ),
@@ -143,7 +143,27 @@ class _WatchlistScreenState extends State<WatchlistScreen> {
                     ),
                   );
                 }
-                return StockListTile(stock: stocks[index - 1]);
+                final stock = stocks[index - 1];
+                return Dismissible(
+                  key: ValueKey(stock.symbol),
+                  direction: DismissDirection.endToStart,
+                  background: Container(
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.only(right: 24),
+                    color: AppColors.red.withValues(alpha: 0.12),
+                    child: const Icon(Icons.bookmark_remove_rounded, color: AppColors.red),
+                  ),
+                  onDismissed: (_) async {
+                    final err = await market.toggleWatchlist(stock.symbol);
+                    if (context.mounted && err != null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(err), behavior: SnackBarBehavior.floating),
+                      );
+                      await market.refreshWatchlist();
+                    }
+                  },
+                  child: StockListTile(stock: stock),
+                );
               },
             ),
           );

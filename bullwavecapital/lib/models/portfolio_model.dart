@@ -9,6 +9,7 @@ class PortfolioModel {
   final int holdingsCount;
   final double stocksInvested;
   final double stocksValue;
+  final double walletBalance;
 
   const PortfolioModel({
     required this.totalInvestment,
@@ -21,6 +22,7 @@ class PortfolioModel {
     this.holdingsCount = 0,
     this.stocksInvested = 0,
     this.stocksValue = 0,
+    this.walletBalance = 0,
   });
 
   factory PortfolioModel.fromJson(Map<String, dynamic> json) {
@@ -51,6 +53,7 @@ class PortfolioModel {
       holdingsCount: readInt('holdingsCount'),
       stocksInvested: read('stocksInvested'),
       stocksValue: read('stocksValue'),
+      walletBalance: read('walletBalance'),
     );
   }
 }

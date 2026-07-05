@@ -71,6 +71,10 @@ All optional for a demo — defaults use console OTP and auto-approve KYC.
 
 **First start is slow** — Flutter web image build (~5–15 min) + Ollama model download (~1.3 GB).
 
+**`flutter pub get` failed / exit code 1** — usually an old Flutter Docker image. Pull latest code (`git pull`) — the Dockerfile must use `ghcr.io/adrianjagielak/flutter:3.44.1`, not `cirruslabs/flutter:stable`.
+
+**Rebuild web only** — `docker compose build web --no-cache`
+
 **AI not responding** — wait for `ollama-pull` to finish: `docker compose logs ollama-pull`
 
 **Can't login** — check backend logs for OTP: `docker compose logs -f backend`

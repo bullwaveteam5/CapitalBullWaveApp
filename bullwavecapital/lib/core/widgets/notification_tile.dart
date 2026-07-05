@@ -21,6 +21,8 @@ class NotificationTile extends StatelessWidget {
         return Icons.trending_up_rounded;
       case 'investment':
         return Icons.savings_outlined;
+      case 'goal':
+        return Icons.flag_rounded;
       case 'kyc':
         return Icons.verified_user_outlined;
       case 'market':

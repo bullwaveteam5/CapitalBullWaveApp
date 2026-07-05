@@ -1,10 +1,14 @@
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 
+import '../../models/commodity_model.dart';
 import '../../models/market_index_model.dart';
+import '../../models/goal_plan_model.dart';
 import '../../models/investment_model.dart';
 import '../../models/notification_model.dart';
+import '../../models/option_trade_model.dart';
 import '../../models/portfolio_model.dart';
 import '../../models/referral_model.dart';
 import '../../models/stock_model.dart';
@@ -124,14 +128,33 @@ class BullwaveApi {
   }
 
   Future<UserModel> uploadAvatar(List<int> bytes, String filename) async {
+    final safeName = _avatarFilename(filename);
     final data = await _client.multipart(
       '/users/me/avatar/',
       fields: {},
       files: [
-        http.MultipartFile.fromBytes('avatar', bytes, filename: filename),
+        http.MultipartFile.fromBytes(
+          'avatar',
+          bytes,
+          filename: safeName,
+          contentType: _avatarMediaType(safeName),
+        ),
       ],
     ) as Map<String, dynamic>;
     return parseUser(data);
+  }
+
+  static String _avatarFilename(String filename) {
+    final name = filename.trim();
+    if (name.isNotEmpty && name.contains('.')) return name;
+    return 'avatar.jpg';
+  }
+
+  static MediaType _avatarMediaType(String filename) {
+    final lower = filename.toLowerCase();
+    if (lower.endsWith('.png')) return MediaType('image', 'png');
+    if (lower.endsWith('.webp')) return MediaType('image', 'webp');
+    return MediaType('image', 'jpeg');
   }
 
   Future<UserModel> removeAvatar() async {
@@ -164,6 +187,11 @@ class BullwaveApi {
 
   Future<List<InvestmentPlanModel>> getInvestmentPlans() async {
     return parseList(await _client.get('/investment/plans/', auth: false), parseInvestmentPlan);
+  }
+
+  Future<InvestmentPlanModel> getInvestmentPlan(String planId) async {
+    final data = await _client.get('/investment/plans/$planId/', auth: false) as Map<String, dynamic>;
+    return parseInvestmentPlan(data);
   }
 
   Future<List<FaqItem>> getInvestmentFaqs() async {
@@ -347,6 +375,68 @@ class BullwaveApi {
     );
   }
 
+  Future<({List<CommodityModel> commodities, String updatedAt, String provider})> getCommodities() async {
+    final data = await _client.get('/market/commodities/') as Map<String, dynamic>;
+    return (
+      commodities: parseList(data['commodities'], parseCommodity),
+      updatedAt: data['updatedAt'] as String? ?? '',
+      provider: data['provider'] as String? ?? 'yahoo',
+    );
+  }
+
+  Future<CommodityModel> getCommodityDetail(String commodityId) async {
+    final data =
+        await _client.get('/market/commodities/$commodityId/') as Map<String, dynamic>;
+    return parseCommodity(data);
+  }
+
+  Future<List<CommodityHoldingModel>> getCommodityHoldings() async {
+    final data = await _client.get('/market/commodities/holdings/') as Map<String, dynamic>;
+    return parseList(data['holdings'], parseCommodityHolding);
+  }
+
+  Future<List<CommodityTradeModel>> getCommodityTrades() async {
+    final data = await _client.get('/market/commodities/orders/') as Map<String, dynamic>;
+    return parseList(data['trades'], parseCommodityTrade);
+  }
+
+  Future<CommodityTradeModel> placeCommodityOrder({
+    required String commodityId,
+    required String side,
+    required int quantity,
+  }) async {
+    final data = await _client.post('/market/commodities/orders/', body: {
+      'commodity_id': commodityId,
+      'side': side.toUpperCase(),
+      'quantity': quantity,
+    }) as Map<String, dynamic>;
+    return parseCommodityTrade(data);
+  }
+
+  Future<OptionChainResponse> getCommodityOptionChain(
+    String commodityId, {
+    String? expiry,
+    bool fast = false,
+  }) async {
+    final data = await _client.get(
+      '/market/commodities/$commodityId/options/',
+      query: {
+        if (expiry != null) 'expiry': expiry,
+        if (fast) 'fast': '1',
+      },
+      timeout: const Duration(seconds: 45),
+    ) as Map<String, dynamic>;
+    return OptionChainResponse(
+      symbol: data['symbol'] as String? ?? commodityId,
+      underlyingValue: _parseDouble(data['underlyingValue']),
+      expiryDates: (data['expiryDates'] as List<dynamic>? ?? [])
+          .map((e) => e.toString())
+          .toList(),
+      selectedExpiry: data['selectedExpiry'] as String? ?? '',
+      contracts: parseList(data['contracts'], parseOptionContract),
+    );
+  }
+
   Future<StockModel> getStockQuote(String symbol) async {
     final data =
         await _client.get('/stocks/$symbol/quote/') as Map<String, dynamic>;
@@ -375,8 +465,12 @@ class BullwaveApi {
     return parseList(await _client.get('/watchlist/'), parseStock);
   }
 
-  Future<void> addToWatchlist(String symbol) async {
-    await _client.post('/watchlist/$symbol/');
+  Future<StockModel?> addToWatchlist(String symbol) async {
+    final data = await _client.post('/watchlist/$symbol/');
+    if (data is Map<String, dynamic>) {
+      return parseStock(data);
+    }
+    return null;
   }
 
   Future<void> removeFromWatchlist(String symbol) async {
@@ -491,6 +585,37 @@ class BullwaveApi {
     return parsePaperTrade(data);
   }
 
+  Future<List<OptionHoldingModel>> getOptionHoldings({String? assetClass}) async {
+    final data = await _client.get(
+      '/options/holdings/',
+      query: {if (assetClass != null) 'asset_class': assetClass},
+    ) as Map<String, dynamic>;
+    return parseList(data['holdings'], parseOptionHolding);
+  }
+
+  Future<OptionTradeModel> placeOptionOrder({
+    required String underlying,
+    required double strike,
+    required String optionType,
+    required DateTime expiry,
+    required String side,
+    required int quantity,
+    required double premium,
+    required String assetClass,
+  }) async {
+    final data = await _client.post('/options/orders/', body: {
+      'underlying': underlying,
+      'strike': strike,
+      'option_type': optionType,
+      'expiry': expiry.toIso8601String().substring(0, 10),
+      'side': side,
+      'quantity': quantity,
+      'premium': premium,
+      'asset_class': assetClass,
+    }) as Map<String, dynamic>;
+    return parseOptionTrade(data);
+  }
+
   Future<({List<ScreenerStockModel> results, List<String> sectors})> getScreener({
     String? sector,
     String sort = 'market_cap',
@@ -514,6 +639,43 @@ class BullwaveApi {
       await _client.get('/dividends/', query: {if (!sync) 'sync': 'false'}),
       parseDividend,
     );
+  }
+
+  Future<List<IpoEventModel>> getIpoCalendar({String? status, int? limit}) async {
+    final data = await _client.get(
+      '/ipo/calendar/',
+      query: {
+        if (status != null) 'status': status,
+        if (limit != null) 'limit': '$limit',
+      },
+    ) as Map<String, dynamic>;
+    return parseList(data['events'], parseIpoEvent);
+  }
+
+  Future<List<IpoHoldingModel>> getIpoHoldings() async {
+    final data = await _client.get('/ipo/holdings/') as Map<String, dynamic>;
+    return parseList(data['holdings'], parseIpoHolding);
+  }
+
+  Future<List<IpoTradeModel>> getIpoTrades() async {
+    final data = await _client.get('/ipo/orders/') as Map<String, dynamic>;
+    return parseList(data['trades'], parseIpoTrade);
+  }
+
+  Future<IpoTradeModel> placeIpoOrder({
+    required String ipoId,
+    required String side,
+    int lots = 1,
+  }) async {
+    final data = await _client.post(
+      '/ipo/orders/',
+      body: {
+        'ipo_id': ipoId,
+        'side': side,
+        'lots': lots,
+      },
+    ) as Map<String, dynamic>;
+    return parseIpoTrade(data);
   }
 
   Future<String> sendAiMessage(String message, {String symbol = ''}) async {
@@ -541,5 +703,100 @@ class BullwaveApi {
     return (data['suggestions'] as List<dynamic>? ?? [])
         .map((item) => item.toString())
         .toList();
+  }
+
+  Future<Map<String, dynamic>> getAiVoiceStatus() async {
+    return await _client.get('/ai/voice/status/') as Map<String, dynamic>;
+  }
+
+  Future<List<int>> synthesizeAiSpeech(String text) async {
+    return _client.postBytes(
+      '/ai/tts/',
+      body: {'text': text},
+      timeout: const Duration(seconds: 90),
+    );
+  }
+
+  Future<String> transcribeAiSpeech(List<int> audioBytes, {String filename = 'speech.m4a'}) async {
+    final data = await _client.multipart(
+      '/ai/stt/',
+      fields: const {},
+      files: [
+        http.MultipartFile.fromBytes(
+          'audio',
+          audioBytes,
+          filename: filename,
+          contentType: MediaType('audio', 'mp4'),
+        ),
+      ],
+      timeout: const Duration(seconds: 90),
+    ) as Map<String, dynamic>;
+    return (data['text'] as String? ?? '').trim();
+  }
+
+  Future<({List<GoalTemplateModel> templates, List<GoalReturnTierModel> returnTiers})> getGoalTemplates() async {
+    final data = await _client.get('/goals/templates/');
+    if (data is List) {
+      return (
+        templates: parseList(data, parseGoalTemplate),
+        returnTiers: GoalReturnTiersDefaults.tiers,
+      );
+    }
+    final map = data as Map<String, dynamic>;
+    final tiersRaw = map['returnTiers'] ?? map['return_tiers'];
+    final tiers = tiersRaw is List && tiersRaw.isNotEmpty
+        ? parseList(tiersRaw, parseGoalReturnTier)
+        : GoalReturnTiersDefaults.tiers;
+    return (
+      templates: parseList(map['templates'], parseGoalTemplate),
+      returnTiers: tiers,
+    );
+  }
+
+  Future<List<UserGoalPlanModel>> getGoalPlans() async {
+    final data = await _client.get('/goals/') as Map<String, dynamic>;
+    return parseList(data['goals'], parseUserGoalPlan);
+  }
+
+  Future<UserGoalPlanModel> createGoalPlan({
+    required String category,
+    required String title,
+    required double targetAmount,
+    required double monthlyContribution,
+    required int durationMonths,
+    bool payFirstInstallment = true,
+  }) async {
+    final data = await _client.post(
+      '/goals/',
+      body: {
+        'category': category,
+        'title': title,
+        'target_amount': targetAmount,
+        'monthly_contribution': monthlyContribution,
+        'duration_months': durationMonths,
+        'pay_first_installment': payFirstInstallment,
+      },
+    ) as Map<String, dynamic>;
+    return parseUserGoalPlan(data);
+  }
+
+  Future<UserGoalPlanModel> contributeToGoal(String goalId, {double? amount}) async {
+    final data = await _client.post(
+      '/goals/$goalId/contribute/',
+      body: {if (amount != null) 'amount': amount},
+    ) as Map<String, dynamic>;
+    return parseUserGoalPlan(data);
+  }
+
+  Future<UserGoalPlanModel> withdrawFromGoal(String goalId, {double? amount}) async {
+    final data = await _client.post(
+      '/goals/$goalId/withdraw/',
+      body: {if (amount != null) 'amount': amount},
+    ) as Map<String, dynamic>;
+    return parseUserGoalPlan(data);
+  }
+
+  Future<GoalRemindersModel> getGoalReminders() async {
+    return parseGoalReminders(await _client.get('/goals/reminders/') as Map<String, dynamic>);
   }
 }

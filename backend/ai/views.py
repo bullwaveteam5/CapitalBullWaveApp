@@ -4,19 +4,25 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from django.conf import settings
+
 from stocks.models import Stock, WatchlistItem
 
 from .llm_service import LlmError, generate_stock_assistant_reply
+from .openai_voice_client import OpenAiVoiceError, openai_voice_configured, transcribe_audio_bytes
+from .voice_service import VoiceError, get_voice_status, text_to_speech_bytes
 from .models import AiChatMessage
 from .serializers import AiChatMessageSerializer
 
 DEFAULT_SUGGESTIONS = [
-    'Should I buy RELIANCE?',
-    'Explain RSI indicator',
-    'Best IT stocks today?',
-    'Nifty outlook this week',
+    'Show my portfolio summary',
+    'What is in my watchlist?',
+    'How do Goal Plans work?',
+    'Explain my wallet balance',
+    'How to buy a stock in this app?',
+    'What are Featured Plans?',
+    'Nifty outlook today',
     'What is P/E ratio?',
-    'How does SIP work?',
 ]
 
 HISTORY_LIMIT = 6
@@ -91,9 +97,18 @@ class AiSuggestionsView(APIView):
 
     def get(self, request):
         suggestions = list(DEFAULT_SUGGESTIONS)
+        user = request.user
+
+        from finance.views import _build_portfolio
+
+        pf = _build_portfolio(user, refresh_stocks=False)
+        if pf['holdings_count']:
+            prompt = 'Summarize my stock portfolio'
+            if prompt not in suggestions:
+                suggestions.insert(0, prompt)
 
         watchlist = (
-            WatchlistItem.objects.filter(user=request.user)
+            WatchlistItem.objects.filter(user=user)
             .select_related('stock')
             .order_by('-added_at')[:2]
         )
@@ -109,3 +124,64 @@ class AiSuggestionsView(APIView):
                 suggestions.append(prompt)
 
         return Response({'suggestions': suggestions[:8], 'generatedAt': timezone.now()})
+
+
+class AiTextToSpeechView(APIView):
+    """Convert AI reply text to speech (OpenAI TTS, ElevenLabs fallback)."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        text = (request.data.get('text') or '').strip()
+        if not text:
+            return Response({'detail': 'Text is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            audio = text_to_speech_bytes(text)
+        except VoiceError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+        from django.http import HttpResponse
+
+        response = HttpResponse(audio, content_type='audio/mpeg')
+        response['Content-Disposition'] = 'inline; filename="bullwave-ai.mp3"'
+        return response
+
+
+class AiSpeechToTextView(APIView):
+    """Transcribe recorded audio via OpenAI Whisper."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        if not openai_voice_configured():
+            return Response(
+                {'detail': 'OpenAI STT not configured. Add OPENAI_API_KEY to backend/.env.'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        upload = request.FILES.get('audio') or request.FILES.get('file')
+        if upload is None:
+            return Response({'detail': 'Audio file is required (field: audio).'}, status=status.HTTP_400_BAD_REQUEST)
+
+        max_bytes = getattr(settings, 'OPENAI_STT_MAX_BYTES', 25 * 1024 * 1024)
+        if upload.size > max_bytes:
+            return Response({'detail': 'Audio file too large (max 25 MB).'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            text = transcribe_audio_bytes(
+                upload.read(),
+                filename=upload.name or 'speech.m4a',
+                mime=upload.content_type or 'audio/mp4',
+            )
+        except OpenAiVoiceError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+        return Response({'text': text})
+
+
+class AiVoiceStatusView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response(get_voice_status())

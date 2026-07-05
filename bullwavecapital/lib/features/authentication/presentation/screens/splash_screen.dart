@@ -24,15 +24,20 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _navigateNext() async {
-    await Future.delayed(const Duration(milliseconds: 1200));
-    if (!mounted) return;
-
     final auth = context.read<AuthProvider>();
-    final restored = await auth.tryRestoreSession();
+    final app = context.read<AppProvider>();
+
+    // Run session restore in parallel with the 5-second branded splash.
+    final restoreFuture = auth.tryRestoreSession();
+    final results = await Future.wait([
+      Future.delayed(const Duration(seconds: 5)),
+      restoreFuture,
+    ]);
     if (!mounted) return;
 
-    final hasCompletedOnboarding =
-        context.read<AppProvider>().hasCompletedOnboarding;
+    final restored = results[1] as bool;
+
+    final hasCompletedOnboarding = app.hasCompletedOnboarding;
 
     if (restored) {
       final kyc = context.read<KycFlowProvider>();

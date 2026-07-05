@@ -131,11 +131,20 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
               IconButton(
                 icon: Icon(
                   market.isInWatchlist(stock.symbol)
-                      ? Icons.star_rounded
-                      : Icons.star_outline_rounded,
-                  color: AppColors.yellow,
+                      ? Icons.bookmark_rounded
+                      : Icons.bookmark_outline_rounded,
+                  color: market.isInWatchlist(stock.symbol)
+                      ? AppColors.brandPink
+                      : colors.textMuted,
                 ),
-                onPressed: () => market.toggleWatchlist(stock.symbol),
+                onPressed: () async {
+                  final err = await market.toggleWatchlist(stock.symbol);
+                  if (context.mounted && err != null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(err), behavior: SnackBarBehavior.floating),
+                    );
+                  }
+                },
               ),
             ],
           ),

@@ -5,6 +5,23 @@ from datetime import timedelta
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+
+def _clean_env(value: str, *, strip_trailing_slash: bool = False) -> str:
+    """Strip accidental inline # comments and whitespace from .env values."""
+    cleaned = (value or '').split('#', 1)[0].strip()
+    if strip_trailing_slash:
+        cleaned = cleaned.rstrip('/')
+    return cleaned
+
+
+def _ascii_env(value: str) -> str:
+    """API keys must be ASCII — rejects copy-paste corruption (e.g. Cyrillic lookalikes)."""
+    cleaned = _clean_env(value)
+    if not cleaned:
+        return ''
+    ascii_only = ''.join(ch for ch in cleaned if ord(ch) < 128)
+    return ascii_only.strip()
+
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-dev-key-change-in-production')
 DEBUG = config('DEBUG', default=True, cast=bool)
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,10.0.2.2').split(',')
@@ -148,6 +165,16 @@ OTP_EXPIRY_MINUTES = config('OTP_EXPIRY_MINUTES', default=5, cast=int)
 AI_PROVIDER = config('AI_PROVIDER', default='ollama')
 OPENAI_API_KEY = config('OPENAI_API_KEY', default='')
 OPENAI_MODEL = config('OPENAI_MODEL', default='gpt-4o-mini')
+# OpenAI voice — TTS + Whisper STT (same API key as chat)
+AI_VOICE_PROVIDER = config('AI_VOICE_PROVIDER', default='auto')  # auto | openai | elevenlabs
+OPENAI_TTS_MODEL = config('OPENAI_TTS_MODEL', default='tts-1')  # tts-1 | tts-1-hd
+OPENAI_TTS_VOICE = config('OPENAI_TTS_VOICE', default='shimmer')  # shimmer/coral = warm female voice
+OPENAI_TTS_SPEED = config('OPENAI_TTS_SPEED', default=0.93, cast=float)
+OPENAI_TTS_MAX_CHARS = config('OPENAI_TTS_MAX_CHARS', default=4096, cast=int)
+OPENAI_STT_MODEL = config('OPENAI_STT_MODEL', default='whisper-1')
+OPENAI_STT_ENABLED = config('OPENAI_STT_ENABLED', default=True, cast=bool)
+OPENAI_STT_MAX_BYTES = config('OPENAI_STT_MAX_BYTES', default=25 * 1024 * 1024, cast=int)
+OPENAI_VOICE_TIMEOUT = config('OPENAI_VOICE_TIMEOUT', default=60, cast=int)
 GEMINI_API_KEY = config('GEMINI_API_KEY', default='')
 GEMINI_MODEL = config('GEMINI_MODEL', default='gemini-2.0-flash')
 GROQ_API_KEY = config('GROQ_API_KEY', default='')
@@ -157,8 +184,14 @@ OLLAMA_MODEL = config('OLLAMA_MODEL', default='llama3.2:1b')
 OLLAMA_KEEP_ALIVE = config('OLLAMA_KEEP_ALIVE', default='30m')
 OLLAMA_NUM_CTX = config('OLLAMA_NUM_CTX', default=2048, cast=int)
 AI_TEMPERATURE = config('AI_TEMPERATURE', default=0.4, cast=float)
-AI_MAX_TOKENS = config('AI_MAX_TOKENS', default=350, cast=int)
+AI_MAX_TOKENS = config('AI_MAX_TOKENS', default=500, cast=int)
 AI_REQUEST_TIMEOUT = config('AI_REQUEST_TIMEOUT', default=90, cast=int)
+
+# ElevenLabs — AI voice (text-to-speech). Get key: https://elevenlabs.io/app/settings/api-keys
+ELEVENLABS_API_KEY = config('ELEVENLABS_API_KEY', default='')
+ELEVENLABS_VOICE_ID = config('ELEVENLABS_VOICE_ID', default='')
+ELEVENLABS_MODEL_ID = config('ELEVENLABS_MODEL_ID', default='eleven_turbo_v2_5')
+ELEVENLABS_TIMEOUT = config('ELEVENLABS_TIMEOUT', default=45, cast=int)
 
 # Real-time market data — Kotak Neo (primary) / Finnhub / Yahoo
 KOTAK_NEO_ACCESS_TOKEN = config('KOTAK_NEO_ACCESS_TOKEN', default='')
@@ -212,32 +245,36 @@ KYC_AUTO_APPROVE = config('KYC_AUTO_APPROVE', default=False, cast=bool)
 REFERRAL_REWARD_AMOUNT = config('REFERRAL_REWARD_AMOUNT', default=500, cast=int)
 APP_SHARE_URL = config('APP_SHARE_URL', default='https://bullwave.in')
 # Public URL for email action links (approve/reject). Use your deployed API URL or ngrok in dev.
-BACKEND_PUBLIC_URL = config('BACKEND_PUBLIC_URL', default='http://127.0.0.1:8000').strip().rstrip('/')
+BACKEND_PUBLIC_URL = _clean_env(config('BACKEND_PUBLIC_URL', default='http://127.0.0.1:8000'), strip_trailing_slash=True)
 
 # Manual KYC admin email — set SMTP credentials in .env for production.
 # If left empty, backend will default to: bullwaveteam5@gmail.com
-ADMIN_KYC_EMAIL = config('ADMIN_KYC_EMAIL', default='')
+ADMIN_KYC_EMAIL = _clean_env(config('ADMIN_KYC_EMAIL', default=''))
+# F&O admin inbox — defaults to ADMIN_KYC_EMAIL when empty
+ADMIN_FNO_EMAIL = _clean_env(config('ADMIN_FNO_EMAIL', default=''))
+# Phone for auto-created Django reviewer used by email Approve/Reject links (optional)
+KYC_EMAIL_REVIEWER_PHONE = _clean_env(config('KYC_EMAIL_REVIEWER_PHONE', default=''))
 EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
-EMAIL_HOST = config('EMAIL_HOST', default='')
+EMAIL_HOST = _clean_env(config('EMAIL_HOST', default=''))
 EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
-EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='').strip()
-_raw_email_password = config('EMAIL_HOST_PASSWORD', default='').strip()
+EMAIL_HOST_USER = _clean_env(config('EMAIL_HOST_USER', default=''))
+_raw_email_password = _clean_env(config('EMAIL_HOST_PASSWORD', default=''))
 # Gmail app passwords are 16 chars; copy-paste often adds spaces or dashes.
 EMAIL_HOST_PASSWORD = _raw_email_password.replace(' ', '').replace('-', '')
 EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
-DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@bullwave.app').strip()
+DEFAULT_FROM_EMAIL = _clean_env(config('DEFAULT_FROM_EMAIL', default='noreply@bullwave.app'))
 
 # Production email via API key (recommended over Gmail SMTP)
 # Brevo: https://app.brevo.com/settings/keys/api
 # SendGrid: https://app.sendgrid.com/settings/api_keys
-EMAIL_PROVIDER = config('EMAIL_PROVIDER', default='smtp')  # smtp | sendgrid | brevo
-BREVO_API_KEY = config('BREVO_API_KEY', default='').strip()
-BREVO_FROM_EMAIL = config('BREVO_FROM_EMAIL', default='').strip()
-BREVO_FROM_NAME = config('BREVO_FROM_NAME', default='BullWave Capital').strip()
-SENDGRID_API_KEY = config('SENDGRID_API_KEY', default='').strip()
-SENDGRID_FROM_EMAIL = config('SENDGRID_FROM_EMAIL', default='').strip()
+EMAIL_PROVIDER = _clean_env(config('EMAIL_PROVIDER', default='smtp')).lower() or 'smtp'
+BREVO_API_KEY = _ascii_env(config('BREVO_API_KEY', default=''))
+BREVO_FROM_EMAIL = _clean_env(config('BREVO_FROM_EMAIL', default=''))
+BREVO_FROM_NAME = _clean_env(config('BREVO_FROM_NAME', default='BullWave Capital')) or 'BullWave Capital'
+SENDGRID_API_KEY = _ascii_env(config('SENDGRID_API_KEY', default=''))
+SENDGRID_FROM_EMAIL = _clean_env(config('SENDGRID_FROM_EMAIL', default=''))
 
-# Broker APIs (future — Zerodha Kite / Dhan)
+FNO_MIN_PORTFOLIO_VALUE = config('FNO_MIN_PORTFOLIO_VALUE', default=50000, cast=int)
 KITE_API_KEY = config('KITE_API_KEY', default='')
 KITE_API_SECRET = config('KITE_API_SECRET', default='')
 DHAN_CLIENT_ID = config('DHAN_CLIENT_ID', default='')

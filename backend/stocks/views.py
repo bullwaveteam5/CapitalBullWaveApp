@@ -1,5 +1,6 @@
 from datetime import date, timedelta
 from decimal import Decimal
+import logging
 
 from django.db.models import Q
 from django.utils import timezone
@@ -30,16 +31,31 @@ from .models import (
     StockHolding,
     WatchlistItem,
 )
-from kyc.permissions import IsKycVerified
+from kyc.permissions import IsFnoVerified, IsKycVerified
 
+from .commodity_trading_service import (
+    CommodityTradingError,
+    list_commodity_holdings,
+    list_recent_commodity_trades,
+    place_commodity_order,
+)
+from .option_trading_service import (
+    OptionTradingError,
+    list_option_holdings,
+    list_recent_option_trades,
+    place_option_order,
+)
 from .trading_service import TradingError, list_recent_trades, place_paper_order
 from .portfolio_service import get_stock_portfolio
 from .screener_service import get_screener_results, get_screener_sectors
 from .dividend_service import sync_user_dividends
 from .news_service import fetch_market_news
+from .options_service import get_commodity_option_chain, get_option_chain
 from .serializers import (
     CreateAlertSerializer,
     CreateSipSerializer,
+    CommodityOrderSerializer,
+    OptionOrderSerializer,
     PaperOrderSerializer,
     PriceAlertSerializer,
     SipPlanSerializer,
@@ -52,6 +68,8 @@ from .serializers import (
     DividendSerializer,
     PaperTradeSerializer,
 )
+
+logger = logging.getLogger('bullwave.market')
 
 
 class MarketLiveView(APIView):
@@ -151,18 +169,48 @@ class StockCandlesView(APIView):
         return Response(StockCandleSerializer(candles, many=True).data)
 
 
+def _stock_or_fallback(symbol: str) -> Stock:
+    """Resolve stock for watchlist — live quote preferred, DB fallback if APIs are down."""
+    symbol = symbol.upper().strip()
+    existing = Stock.objects.filter(symbol=symbol).first()
+    try:
+        return refresh_stock(symbol)
+    except Exception as exc:
+        logger.warning('Watchlist stock refresh failed for %s: %s', symbol, exc)
+        if existing:
+            return existing
+        return Stock.objects.create(
+            symbol=symbol,
+            name=symbol,
+            exchange='NSE',
+            sector='General',
+            ltp=Decimal('100'),
+            change=Decimal('0'),
+            change_percent=Decimal('0'),
+            open_price=Decimal('100'),
+            high=Decimal('100'),
+            low=Decimal('100'),
+            previous_close=Decimal('100'),
+            volume=0,
+        )
+
+
 class WatchlistView(APIView):
     permission_classes = [IsAuthenticated, IsKycVerified]
 
     def get(self, request):
-        items = WatchlistItem.objects.filter(user=request.user).select_related('stock')
+        items = list(
+            WatchlistItem.objects.filter(user=request.user).select_related('stock')
+        )
         symbols = [i.stock.symbol for i in items]
-        try:
-            if symbols:
+        if symbols:
+            try:
                 refresh_stocks(symbols)
-                items = WatchlistItem.objects.filter(user=request.user).select_related('stock')
-        except FinnhubError as exc:
-            return Response({'detail': str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+                items = list(
+                    WatchlistItem.objects.filter(user=request.user).select_related('stock')
+                )
+            except Exception as exc:
+                logger.warning('Watchlist batch refresh failed: %s', exc)
         return Response(StockSerializer([i.stock for i in items], many=True).data)
 
 
@@ -170,17 +218,16 @@ class WatchlistSymbolView(APIView):
     permission_classes = [IsAuthenticated, IsKycVerified]
 
     def post(self, request, symbol):
-        try:
-            stock = refresh_stock(symbol.upper())
-        except FinnhubError as exc:
-            return Response({'detail': str(exc)}, status=503)
+        stock = _stock_or_fallback(symbol)
         WatchlistItem.objects.get_or_create(user=request.user, stock=stock)
-        return Response({'success': True}, status=201)
+        return Response(StockSerializer(stock).data, status=201)
 
     def delete(self, request, symbol):
-        WatchlistItem.objects.filter(
+        deleted, _ = WatchlistItem.objects.filter(
             user=request.user, stock__symbol__iexact=symbol
         ).delete()
+        if not deleted:
+            return Response({'detail': 'Symbol not in watchlist.'}, status=404)
         return Response(status=204)
 
 
@@ -325,17 +372,23 @@ class SipPlanDetailView(APIView):
 
 
 class OptionChainView(APIView):
-    permission_classes = [IsAuthenticated, IsKycVerified]
+    permission_classes = [IsAuthenticated, IsKycVerified, IsFnoVerified]
 
     def get(self, request, symbol):
         expiry = request.query_params.get('expiry')
         fast = request.query_params.get('fast', '').lower() in ('1', 'true', 'yes')
         try:
             chain = get_option_chain(symbol, expiry=expiry, fast=fast)
-        except FinnhubError as exc:
-            return Response({'detail': str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        except Exception as exc:
+            logger.exception('Option chain failed for %s: %s', symbol, exc)
+            return Response(
+                {'detail': 'Unable to build option chain. Please try again.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
         if not chain:
             return Response({'detail': 'Unable to load option chain for this symbol.'}, status=404)
+        if not fast and not chain.get('contracts'):
+            return Response({'detail': 'No F&O contracts available for this symbol.'}, status=404)
 
         contracts = OptionContractSerializer(chain['contracts'], many=True).data
         return Response(
@@ -352,7 +405,7 @@ class OptionChainView(APIView):
 
 
 class PaperTradingOrdersView(APIView):
-    permission_classes = [IsAuthenticated, IsKycVerified]
+    permission_classes = [IsAuthenticated, IsKycVerified, IsFnoVerified]
 
     def get(self, request):
         return Response(list_recent_trades(request.user, limit=50))
@@ -432,3 +485,199 @@ class DividendsView(APIView):
                 pass
         records = DividendRecord.objects.filter(user=request.user).select_related('stock')
         return Response(DividendSerializer(records, many=True).data)
+
+
+class CommodityListView(APIView):
+    """Live global commodity prices — gold, silver, crude oil, etc."""
+
+    permission_classes = [IsAuthenticated, IsKycVerified]
+
+    def get(self, request):
+        from .commodity_service import get_commodity_snapshot
+
+        return Response(camelize(get_commodity_snapshot()))
+
+
+class CommodityDetailView(APIView):
+    permission_classes = [IsAuthenticated, IsKycVerified]
+
+    def get(self, request, commodity_id):
+        from .commodity_service import get_commodity_detail
+
+        row = get_commodity_detail(commodity_id)
+        if not row:
+            return Response({'detail': 'Commodity not found.'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(camelize(row))
+
+
+class CommodityHoldingsView(APIView):
+    permission_classes = [IsAuthenticated, IsKycVerified]
+
+    def get(self, request):
+        return Response(camelize({'holdings': list_commodity_holdings(request.user)}))
+
+
+class CommodityOrdersView(APIView):
+    permission_classes = [IsAuthenticated, IsKycVerified]
+
+    def get(self, request):
+        return Response(camelize({'trades': list_recent_commodity_trades(request.user)}))
+
+    def post(self, request):
+        serializer = CommodityOrderSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        try:
+            payload = place_commodity_order(
+                request.user,
+                commodity_id=data['commodity_id'],
+                side=data['side'],
+                quantity=data['quantity'],
+            )
+        except CommodityTradingError as exc:
+            return Response({'detail': str(exc)}, status=400)
+        payload['success'] = True
+        payload['message'] = (
+            'Sell order executed successfully.'
+            if data['side'].upper() == 'SELL'
+            else 'Buy order executed successfully.'
+        )
+        return Response(camelize(payload), status=201)
+
+
+class CommodityOptionChainView(APIView):
+    """Commodity F&O chain — gold, silver, crude oil, etc. (KYC only, no stock F&O gate)."""
+
+    permission_classes = [IsAuthenticated, IsKycVerified]
+
+    def get(self, request, commodity_id):
+        expiry = request.query_params.get('expiry')
+        fast = request.query_params.get('fast', '').lower() in ('1', 'true', 'yes')
+        try:
+            chain = get_commodity_option_chain(commodity_id, expiry=expiry, fast=fast)
+        except Exception as exc:
+            logger.exception('Commodity option chain failed for %s: %s', commodity_id, exc)
+            return Response(
+                {'detail': 'Unable to build commodity option chain.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+        if not chain or not chain.get('contracts'):
+            return Response({'detail': 'No option contracts for this commodity.'}, status=404)
+
+        contracts = OptionContractSerializer(chain['contracts'], many=True).data
+        return Response(
+            camelize(
+                {
+                    'symbol': chain['symbol'],
+                    'name': chain.get('name', ''),
+                    'unit': chain.get('unit', ''),
+                    'currency': chain.get('currency', 'USD'),
+                    'underlying_value': chain['underlying_value'],
+                    'expiry_dates': chain['expiry_dates'],
+                    'selected_expiry': chain['selected_expiry'],
+                    'contracts': contracts,
+                    'updated_at': chain.get('updated_at', ''),
+                    'source': chain.get('source', ''),
+                    'asset_class': 'commodity',
+                }
+            )
+        )
+
+
+class OptionHoldingsView(APIView):
+    permission_classes = [IsAuthenticated, IsKycVerified]
+
+    def get(self, request):
+        asset_class = request.query_params.get('asset_class')
+        return Response(
+            camelize({'holdings': list_option_holdings(request.user, asset_class=asset_class)})
+        )
+
+
+class OptionOrdersView(APIView):
+    permission_classes = [IsAuthenticated, IsKycVerified]
+
+    def get(self, request):
+        return Response(camelize({'trades': list_recent_option_trades(request.user)}))
+
+    def post(self, request):
+        serializer = OptionOrderSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        asset_class = (data.get('asset_class') or 'equity_fno').lower()
+        if asset_class == 'equity_fno' and not IsFnoVerified().has_permission(request, self):
+            return Response(
+                {'detail': 'F&O verification required to trade stock/index options.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        try:
+            payload = place_option_order(
+                request.user,
+                underlying=data['underlying'],
+                strike=data['strike'],
+                option_type=data['option_type'],
+                expiry=data['expiry'],
+                side=data['side'],
+                quantity=data['quantity'],
+                premium=data['premium'],
+                asset_class=asset_class,
+            )
+        except OptionTradingError as exc:
+            return Response({'detail': str(exc)}, status=400)
+        payload['success'] = True
+        payload['message'] = (
+            'Sell order executed successfully.'
+            if data['side'].upper() == 'SELL'
+            else 'Buy order executed successfully.'
+        )
+        return Response(camelize(payload), status=201)
+
+
+class IpoCalendarView(APIView):
+    """Upcoming, open, and recently listed IPOs."""
+    permission_classes = [IsAuthenticated, IsKycVerified]
+
+    def get(self, request):
+        from .ipo_service import list_ipo_calendar
+
+        status_filter = request.query_params.get('status')
+        limit_raw = request.query_params.get('limit')
+        limit = int(limit_raw) if limit_raw and limit_raw.isdigit() else None
+        rows = list_ipo_calendar(status=status_filter, limit=limit)
+        return Response(camelize({'events': rows, 'count': len(rows)}))
+
+
+class IpoHoldingsView(APIView):
+    permission_classes = [IsAuthenticated, IsKycVerified]
+
+    def get(self, request):
+        from .ipo_trading_service import list_ipo_holdings
+
+        return Response(camelize({'holdings': list_ipo_holdings(request.user)}))
+
+
+class IpoOrdersView(APIView):
+    permission_classes = [IsAuthenticated, IsKycVerified]
+
+    def get(self, request):
+        from .ipo_trading_service import list_ipo_trades
+
+        return Response(camelize({'trades': list_ipo_trades(request.user)}))
+
+    def post(self, request):
+        from .ipo_trading_service import IpoTradingError, place_ipo_order
+
+        ipo_id = request.data.get('ipo_id') or request.data.get('ipoId')
+        raw_side = request.data.get('side', 'APPLY')
+        lots = int(request.data.get('lots', 1))
+        try:
+            payload = place_ipo_order(request.user, ipo_id=ipo_id, side=raw_side, lots=lots)
+        except IpoTradingError as exc:
+            return Response({'detail': str(exc)}, status=400)
+        payload['success'] = True
+        payload['message'] = (
+            'IPO sold successfully.'
+            if str(raw_side).upper() == 'SELL'
+            else 'IPO application submitted successfully.'
+        )
+        return Response(camelize(payload), status=201)

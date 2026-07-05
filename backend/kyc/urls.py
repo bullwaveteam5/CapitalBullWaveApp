@@ -8,7 +8,13 @@ from .manual_views import (
     KycMeView,
     KycSubmitView,
 )
-from .email_action_views import KycEmailApproveView, KycEmailRejectView
+from .email_action_views import (
+    FnoEmailApproveView,
+    FnoEmailRejectView,
+    KycEmailApproveView,
+    KycEmailRejectView,
+)
+from .fno_views import FnoMeView, FnoSubmitView
 from .views import (
     KycStatusView,
     NameMatchView,
@@ -36,4 +42,9 @@ urlpatterns = [
     path('admin/kyc/<uuid:pk>/', AdminKycDetailView.as_view(), name='admin-kyc-detail'),
     path('admin/kyc/<uuid:pk>/approve/', AdminKycApproveView.as_view(), name='admin-kyc-approve'),
     path('admin/kyc/<uuid:pk>/reject/', AdminKycRejectView.as_view(), name='admin-kyc-reject'),
+    # F&O eligibility
+    path('fno/me/', FnoMeView.as_view(), name='fno-me'),
+    path('fno/submit/', FnoSubmitView.as_view(), name='fno-submit'),
+    path('fno/review/approve/', FnoEmailApproveView.as_view(), name='fno-email-approve'),
+    path('fno/review/reject/', FnoEmailRejectView.as_view(), name='fno-email-reject'),
 ]

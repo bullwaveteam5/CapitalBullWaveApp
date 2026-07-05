@@ -8,9 +8,17 @@ from .ollama_client import OllamaError, chat as ollama_chat, check_ollama
 
 logger = logging.getLogger('bullwave.ai')
 
-SYSTEM_PROMPT = """You are BullWave AI for Indian stock investors (NSE/BSE).
-Give short, practical answers. Use ₹ for prices. Not SEBI-registered — add brief risk note for buy/sell advice.
-Keep answers under 120 words unless asked for more."""
+SYSTEM_PROMPT = """You are BullWave AI — the in-app assistant for BullWave Invest (Indian markets: NSE/BSE).
+
+RULES:
+1. Answer using the APP KNOWLEDGE and LIVE USER DATA sections below. Quote real numbers (₹, %, quantities) from user data.
+2. Portfolio & stock questions: summarize the user's actual holdings, P&L, wallet, watchlist — be specific and helpful.
+3. App / how-to questions: explain which screen to open and steps (Home, Portfolio, Wallet, Goal Plans, Markets, etc.).
+4. Stock analysis: use live quote data provided; mention sector, PE, day change when relevant.
+5. You ARE allowed to discuss the user's portfolio and holdings — that data is provided for this purpose.
+6. For buy/sell recommendations: give balanced view, not personalized SEBI-regulated advice; add a brief risk note.
+7. Keep answers clear and structured (short bullets OK). Default under 150 words unless user asks for detail.
+8. If user data shows empty portfolio, guide them to Markets or Featured Plans to start."""
 
 SUPPORTED_PROVIDERS = ('ollama', 'openai', 'gemini', 'groq')
 
@@ -190,8 +198,8 @@ def generate_stock_assistant_reply(user, message, symbol='', history=None):
     Default: Ollama (local, free, no API key).
     Set AI_PROVIDER in backend/.env to switch providers.
     """
-    context = build_user_context(user, symbol)
-    system_prompt = f'{SYSTEM_PROMPT}\n\n---\n{context}'
+    context = build_user_context(user, message=message, symbol=symbol)
+    system_prompt = f'{SYSTEM_PROMPT}\n\n---\n\n{context}'
     provider = _validate_provider_config()
 
     dispatch = {

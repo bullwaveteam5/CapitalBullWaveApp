@@ -6,7 +6,9 @@ import 'package:provider/provider.dart';
 
 
 
+import '../../../../core/constants/routes.dart';
 import '../../../../core/constants/fno_underlyings.dart';
+import '../../../fno/presentation/provider/fno_flow_provider.dart';
 
 import '../../../../core/theme/app_theme_extension.dart';
 
@@ -20,6 +22,7 @@ import '../provider/stock_features_provider.dart';
 
 import '../provider/stock_market_provider.dart';
 
+import '../utils/option_trading_flow.dart';
 import '../widgets/option_chain_table.dart';
 
 
@@ -63,19 +66,22 @@ class _OptionChainScreenState extends State<OptionChainScreen> {
 
 
   Future<void> _load() async {
+    final fno = context.read<FnoFlowProvider>();
+    await fno.ensureLoaded();
+    if (!mounted) return;
+    if (!fno.isVerified) {
+      context.replace(AppRoutes.fnoVerification);
+      return;
+    }
 
     final market = context.read<StockMarketProvider>();
-
     final features = context.read<StockFeaturesProvider>();
 
     if (!FnoUnderlyings.isIndex(_symbol)) {
-
       await market.ensureStock(_symbol);
-
     }
 
     await features.loadOptionChain(_symbol);
-
   }
 
 
@@ -179,55 +185,39 @@ class _OptionChainScreenState extends State<OptionChainScreen> {
 
 
                 if (chain.isEmpty) {
-
+                  final needsFno = error == '__fno_required__';
                   return Center(
-
                     child: Padding(
-
                       padding: const EdgeInsets.all(24),
-
                       child: Column(
-
                         mainAxisAlignment: MainAxisAlignment.center,
-
                         children: [
-
-                          Icon(Icons.candlestick_chart_outlined, size: 48, color: colors.textMuted),
-
+                          Icon(
+                            needsFno ? Icons.verified_user_outlined : Icons.candlestick_chart_outlined,
+                            size: 48,
+                            color: colors.textMuted,
+                          ),
                           const SizedBox(height: 16),
-
                           Text(
-
-                            error ?? 'No F&O data for $sym',
-
+                            needsFno
+                                ? 'Complete F&O verification to access the option chain.'
+                                : (error ?? 'No F&O data for $sym'),
                             textAlign: TextAlign.center,
-
                             style: TextStyle(color: colors.textSecondary, fontWeight: FontWeight.w600),
-
                           ),
-
                           const SizedBox(height: 16),
-
                           FilledButton.icon(
-
-                            onPressed: _load,
-
-                            icon: const Icon(Icons.refresh_rounded),
-
-                            label: const Text('Retry'),
-
+                            onPressed: needsFno
+                                ? () => context.replace(AppRoutes.fnoVerification)
+                                : _load,
+                            icon: Icon(needsFno ? Icons.arrow_forward_rounded : Icons.refresh_rounded),
+                            label: Text(needsFno ? 'Verify F&O Access' : 'Retry'),
                             style: FilledButton.styleFrom(backgroundColor: AppColors.brandOrange),
-
                           ),
-
                         ],
-
                       ),
-
                     ),
-
                   );
-
                 }
 
 
@@ -354,6 +344,16 @@ class _OptionChainScreenState extends State<OptionChainScreen> {
 
                     const SizedBox(height: 8),
 
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(
+                        'Tap CE or PE price to buy or sell',
+                        style: TextStyle(color: colors.textMuted, fontSize: 11, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+
+                    const SizedBox(height: 4),
+
                     Expanded(
 
                       child: RefreshIndicator(
@@ -362,7 +362,15 @@ class _OptionChainScreenState extends State<OptionChainScreen> {
 
                         onRefresh: _load,
 
-                        child: OptionChainTable(contracts: chain, spot: spot),
+                        child: OptionChainTable(
+                          contracts: chain,
+                          spot: spot,
+                          onContractTap: (contract) => openOptionContractTradingPad(
+                            context,
+                            contract: contract,
+                            chainContext: OptionChainContext.equityFno,
+                          ),
+                        ),
 
                       ),
 

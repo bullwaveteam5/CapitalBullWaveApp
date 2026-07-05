@@ -2,7 +2,8 @@ from django.contrib import admin, messages
 from django.utils import timezone
 
 from .manual_service import approve_kyc_request, reject_kyc_request
-from .models import KYCRequest, KYCRequestImage, KycProfile, VerificationAuditLog
+from .fno_service import approve_fno_request, reject_fno_request
+from .models import FnoEligibilityRequest, KYCRequest, KYCRequestImage, KycProfile, VerificationAuditLog
 
 
 @admin.register(KYCRequest)
@@ -44,6 +45,41 @@ class KYCRequestAdmin(admin.ModelAdmin):
         count = 0
         for req in queryset.filter(status=KYCRequest.Status.PENDING):
             reject_kyc_request(req, request.user, 'Rejected from Django admin.')
+            count += 1
+        self.message_user(request, f'Rejected {count} request(s).', messages.WARNING)
+
+
+@admin.register(FnoEligibilityRequest)
+class FnoEligibilityRequestAdmin(admin.ModelAdmin):
+    list_display = ('user', 'proof_type', 'status', 'portfolio_value', 'created_at', 'reviewed_at')
+    list_filter = ('status', 'proof_type')
+    search_fields = ('user__phone', 'user__name')
+    readonly_fields = (
+        'id',
+        'user',
+        'proof_type',
+        'document',
+        'portfolio_value',
+        'reviewed_by',
+        'reviewed_at',
+        'created_at',
+        'updated_at',
+    )
+    actions = ['approve_selected', 'reject_selected']
+
+    @admin.action(description='Approve selected F&O requests')
+    def approve_selected(self, request, queryset):
+        count = 0
+        for req in queryset.filter(status=FnoEligibilityRequest.Status.PENDING):
+            approve_fno_request(req, request.user)
+            count += 1
+        self.message_user(request, f'Approved {count} F&O request(s).', messages.SUCCESS)
+
+    @admin.action(description='Reject selected F&O requests')
+    def reject_selected(self, request, queryset):
+        count = 0
+        for req in queryset.filter(status=FnoEligibilityRequest.Status.PENDING):
+            reject_fno_request(req, request.user, 'Rejected from Django admin.')
             count += 1
         self.message_user(request, f'Rejected {count} request(s).', messages.WARNING)
 

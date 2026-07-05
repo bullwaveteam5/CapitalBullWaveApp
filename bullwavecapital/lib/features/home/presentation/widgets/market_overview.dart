@@ -54,18 +54,24 @@ class MarketOverview extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 12),
-        SizedBox(
-          height: 118,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: indices.length,
-            separatorBuilder: (_, _) => const SizedBox(width: 10),
-            itemBuilder: (context, index) => SizedBox(
-              width: 148,
-              child: _MarketIndexCard(index: indices[index]),
+        if (indices.isEmpty)
+          Text(
+            'Market data unavailable',
+            style: Theme.of(context).textTheme.bodySmall,
+          )
+        else
+          SizedBox(
+            height: 118,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: indices.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 10),
+              itemBuilder: (context, index) => SizedBox(
+                width: 148,
+                child: _MarketIndexCard(index: indices[index]),
+              ),
             ),
           ),
-        ),
       ],
     );
   }

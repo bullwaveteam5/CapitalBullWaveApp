@@ -107,6 +107,8 @@ class InvestmentCard extends StatelessWidget {
   final String name;
   final double minimumInvestment;
   final double annualReturn;
+  final double? monthlyReturnMin;
+  final double? monthlyReturnMax;
   final String risk;
   final VoidCallback? onTap;
   final bool compact;
@@ -116,10 +118,36 @@ class InvestmentCard extends StatelessWidget {
     required this.name,
     required this.minimumInvestment,
     required this.annualReturn,
+    this.monthlyReturnMin,
+    this.monthlyReturnMax,
     this.risk = 'Medium',
     this.onTap,
     this.compact = false,
   });
+
+  String get _returnBadge {
+    if (monthlyReturnMin != null &&
+        monthlyReturnMax != null &&
+        monthlyReturnMax! > monthlyReturnMin!) {
+      return '${monthlyReturnMin!.toStringAsFixed(2)}–${monthlyReturnMax!.toStringAsFixed(2)}%';
+    }
+    if (monthlyReturnMin != null && monthlyReturnMin! > 0) {
+      return '${monthlyReturnMin!.toStringAsFixed(2)}%';
+    }
+    return '${annualReturn.toStringAsFixed(1)}%';
+  }
+
+  String get _returnDetail {
+    if (monthlyReturnMin != null &&
+        monthlyReturnMax != null &&
+        monthlyReturnMax! > monthlyReturnMin!) {
+      return '${monthlyReturnMin!.toStringAsFixed(2)}–${monthlyReturnMax!.toStringAsFixed(2)}% monthly';
+    }
+    if (monthlyReturnMin != null && monthlyReturnMin! > 0) {
+      return '${monthlyReturnMin!.toStringAsFixed(2)}% monthly';
+    }
+    return '${annualReturn.toStringAsFixed(1)}% p.a.';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -156,7 +184,7 @@ class InvestmentCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  '${annualReturn.toStringAsFixed(1)}%',
+                  _returnBadge,
                   style: TextStyle(
                     color: AppColors.greenDark,
                     fontWeight: FontWeight.w600,
@@ -167,7 +195,7 @@ class InvestmentCard extends StatelessWidget {
             ],
           ),
           SizedBox(height: compact ? 10 : 12),
-          _RowLabel(label: 'Return', value: '${annualReturn.toStringAsFixed(1)}% p.a.', colors: colors, compact: compact),
+          _RowLabel(label: 'Return', value: _returnDetail, colors: colors, compact: compact),
           _RowLabel(label: 'Risk', value: risk, colors: colors, compact: compact),
           _RowLabel(label: 'Min', value: CurrencyFormatter.format(minimumInvestment), colors: colors, compact: compact),
           SizedBox(height: compact ? 10 : 14),

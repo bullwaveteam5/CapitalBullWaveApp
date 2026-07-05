@@ -1,29 +1,34 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+
+import '../../../../core/api/api_config.dart';
 import '../../../../core/constants/dimensions.dart';
 import '../../../../core/constants/routes.dart';
-import '../../../../core/theme/app_decorations.dart';
 import '../../../../core/theme/colors.dart';
-import '../../../../core/utils/bank_verification_guard.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/loading_card.dart';
-import '../../../../core/widgets/modern_hero_card.dart';
 import '../../../../core/widgets/modern_screen_header.dart';
 import '../../../../core/widgets/money_text.dart';
 import '../../../../core/widgets/portfolio_card.dart';
-import '../../../../core/widgets/robinhood_card.dart';
 import '../../../../core/widgets/staggered_entrance.dart';
-import '../../../../models/transaction_model.dart';
+import '../../../../models/investment_model.dart';
 import '../../../../models/stock_model.dart';
 import '../../../authentication/presentation/provider/auth_provider.dart';
 import '../../../notifications/presentation/provider/notification_provider.dart';
-import '../provider/home_provider.dart';
 import '../../../stocks/presentation/provider/stock_market_provider.dart';
 import '../../../stocks/presentation/widgets/stock_list_tile.dart';
+import '../provider/home_provider.dart';
+import '../widgets/home_portfolio_section.dart';
+import '../widgets/home_recent_activity.dart';
 import '../widgets/market_overview.dart';
 import '../widgets/news_banner.dart';
 import '../widgets/quick_action_button.dart';
+import '../../../goals/presentation/provider/goal_plan_provider.dart';
+import '../../../goals/presentation/widgets/home_goals_section.dart';
+import '../widgets/home_ipo_section.dart';
+import '../../../investment/data/featured_plans_catalog.dart';
+import '../../../stocks/presentation/provider/stock_features_provider.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -33,6 +38,34 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  bool _dueDialogShown = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkGoalReminders();
+      _loadEngagement();
+    });
+  }
+
+  Future<void> _loadEngagement() async {
+    if (!mounted) return;
+    final features = context.read<StockFeaturesProvider>();
+    await Future.wait([
+      features.refreshIpoCalendar(limit: 6),
+    ]);
+  }
+
+  Future<void> _checkGoalReminders() async {
+    if (_dueDialogShown || !mounted) return;
+    final goals = context.read<GoalPlanProvider>();
+    await goals.refreshReminders();
+    if (!mounted || goals.dueGoals.isEmpty) return;
+    _dueDialogShown = true;
+    showGoalDueDialog(context, goals.dueGoals.first);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<HomeProvider>(
@@ -41,18 +74,18 @@ class _HomeScreenState extends State<HomeScreen> {
           return const SafeArea(
             child: Padding(
               padding: EdgeInsets.all(AppDimensions.paddingMd),
-              child: LoadingList(itemCount: 4, itemHeight: 100),
+              child: LoadingList(itemCount: 5, itemHeight: 100),
             ),
           );
         }
 
         final portfolio = provider.portfolio;
-        final chartValues = provider.monthlyEarnings.map((e) => e.amount).toList();
         final auth = context.watch<AuthProvider>();
         final user = auth.user;
         final displayName = user?.displayName.split(' ').first ?? 'Investor';
-        final avatarUrl = user?.avatarUrl ?? '';
+        final avatarUrl = ApiConfig.resolveMediaUrl(user?.avatarUrl ?? '');
         final notificationCount = context.watch<NotificationProvider>().unreadCount;
+        final plans = _featuredPlansForHome(provider);
 
         return SafeArea(
           child: RefreshIndicator(
@@ -69,20 +102,30 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: ModernScreenHeader(
                       subtitle: GreetingHelper.getGreeting(),
                       title: displayName,
-                      avatarUrl: avatarUrl,
+                      avatarUrl: avatarUrl.isEmpty ? null : avatarUrl,
                       notificationCount: notificationCount,
                       onNotificationTap: () => context.push(AppRoutes.notifications),
                     ),
                   ),
+                  if (provider.error != null) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.yellow.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(provider.error!, style: const TextStyle(fontSize: 13)),
+                    ),
+                  ],
                   const SizedBox(height: 20),
                   StaggeredEntrance(
                     index: 1,
-                    child: ModernHeroCard(
-                      label: 'Portfolio Balance',
-                      amount: portfolio.holdingsCount > 0 ? portfolio.stocksValue : portfolio.currentValue,
-                      changeAmount: portfolio.dayPnl,
-                      changePrefix: 'Today',
-                      chartValues: chartValues,
+                    child: HomePortfolioSection(
+                      portfolio: portfolio,
+                      chartValues: provider.portfolioChartValues,
+                      onTap: () => context.go(AppRoutes.portfolio),
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -93,7 +136,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   if (provider.marketNews.isNotEmpty) ...[
                     const SizedBox(height: 16),
                     StaggeredEntrance(
-                      index: 2,
+                      index: 3,
                       child: NewsBanner(
                         news: provider.marketNews,
                         onTap: () => context.push(AppRoutes.stockNews),
@@ -102,12 +145,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                   const SizedBox(height: 24),
                   StaggeredEntrance(
-                    index: 3,
+                    index: 4,
                     child: const SectionHeader(title: 'Quick Actions'),
                   ),
                   const SizedBox(height: 12),
                   StaggeredEntrance(
-                    index: 4,
+                    index: 5,
                     child: QuickActionsRow(
                       actions: [
                         QuickActionButton(
@@ -117,16 +160,22 @@ class _HomeScreenState extends State<HomeScreen> {
                           onTap: () => context.go(AppRoutes.invest),
                         ),
                         QuickActionButton(
-                          icon: Icons.star_rounded,
-                          label: 'Watchlist',
-                          color: AppColors.yellow,
-                          onTap: () => context.push(AppRoutes.watchlist),
+                          icon: Icons.account_balance_wallet_outlined,
+                          label: 'Wallet',
+                          color: AppColors.green,
+                          onTap: () => context.go(AppRoutes.wallet),
                         ),
                         QuickActionButton(
-                          icon: Icons.smart_toy_outlined,
-                          label: 'AI Assist',
-                          color: const Color(0xFF8B5CF6),
-                          onTap: () => context.push(AppRoutes.aiAssistant),
+                          icon: Icons.flag_rounded,
+                          label: 'Goals',
+                          color: AppColors.brandPink,
+                          onTap: () => context.push(AppRoutes.goalPlans),
+                        ),
+                        QuickActionButton(
+                          icon: Icons.savings_outlined,
+                          label: 'Plans',
+                          color: const Color(0xFF6366F1),
+                          onTap: () => context.push(AppRoutes.featuredPlansList),
                         ),
                         QuickActionButton(
                           icon: Icons.newspaper_outlined,
@@ -134,14 +183,36 @@ class _HomeScreenState extends State<HomeScreen> {
                           color: AppColors.blue,
                           onTap: () => context.push(AppRoutes.stockNews),
                         ),
+                        QuickActionButton(
+                          icon: Icons.calendar_month_outlined,
+                          label: 'IPO',
+                          color: const Color(0xFF0EA5E9),
+                          onTap: () => context.push(AppRoutes.ipoCalendar),
+                        ),
                       ],
                     ),
                   ),
                   const SizedBox(height: 24),
                   StaggeredEntrance(
-                    index: 5,
+                    index: 6,
+                    child: const HomeIpoSection(),
+                  ),
+                  const SizedBox(height: 24),
+                  StaggeredEntrance(
+                    index: 7,
+                    child: provider.goalPlans.isNotEmpty
+                        ? HomeGoalsSection(
+                            goals: provider.goalPlans,
+                            onViewAll: () => context.push(AppRoutes.goalPlans),
+                          )
+                        : _GoalPlansPromo(onTap: () => context.push(AppRoutes.goalPlans)),
+                  ),
+                  const SizedBox(height: 24),
+                  StaggeredEntrance(
+                    index: 8,
                     child: Consumer<StockMarketProvider>(
                       builder: (context, market, _) {
+                        if (market.trendingStocks.isEmpty) return const SizedBox.shrink();
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -152,31 +223,31 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                             const SizedBox(height: 8),
                             ...market.trendingStocks.take(4).map((StockModel s) => StockListTile(stock: s)),
+                            const SizedBox(height: 24),
                           ],
                         );
                       },
                     ),
                   ),
-                  const SizedBox(height: 24),
                   StaggeredEntrance(
-                    index: 6,
+                    index: 9,
                     child: SectionHeader(
                       title: 'Featured Plans',
                       actionLabel: 'View All',
-                      onAction: () => context.go(AppRoutes.invest),
+                      onAction: () => context.push(AppRoutes.featuredPlansList),
                     ),
                   ),
                   const SizedBox(height: 12),
                   StaggeredEntrance(
-                    index: 7,
+                    index: 10,
                     child: SizedBox(
                       height: 196,
                       child: ListView.separated(
                         scrollDirection: Axis.horizontal,
-                        itemCount: provider.featuredPlans.take(3).length,
+                        itemCount: plans.length,
                         separatorBuilder: (_, _) => const SizedBox(width: 12),
                         itemBuilder: (context, index) {
-                          final plan = provider.featuredPlans[index];
+                          final plan = plans[index];
                           return SizedBox(
                             width: 260,
                             child: InvestmentCard(
@@ -184,15 +255,10 @@ class _HomeScreenState extends State<HomeScreen> {
                               name: plan.name,
                               minimumInvestment: plan.minimumInvestment,
                               annualReturn: plan.annualReturnRate,
-                              risk: plan.id == 'PLAN003'
-                                  ? 'High'
-                                  : plan.id == 'PLAN002'
-                                      ? 'Medium'
-                                      : 'Low',
-                              onTap: () async {
-                                if (!await ensureBankVerified(context)) return;
-                                if (context.mounted) context.go(AppRoutes.invest);
-                              },
+                              monthlyReturnMin: plan.monthlyReturnMin,
+                              monthlyReturnMax: plan.monthlyReturnMax,
+                              risk: _riskFor(plan.id),
+                              onTap: () => _openFeaturedPlan(context, plan),
                             ),
                           );
                         },
@@ -201,70 +267,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(height: 24),
                   StaggeredEntrance(
-                    index: 8,
-                    child: const SectionHeader(title: 'Recent Activity'),
-                  ),
-                  const SizedBox(height: 12),
-                  StaggeredEntrance(
-                    index: 9,
-                    child: Column(
-                      children: provider.recentTransactions.map(
-                        (txn) => Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: RobinhoodCard(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 44,
-                                  height: 44,
-                                  decoration: AppDecorations.iconBadge(
-                                    txn.type == TransactionType.profit
-                                        ? AppColors.green
-                                        : AppColors.brandOrange,
-                                  ),
-                                  child: Icon(
-                                    txn.type == TransactionType.profit
-                                        ? Icons.trending_up_rounded
-                                        : Icons.swap_horiz_rounded,
-                                    color: txn.type == TransactionType.profit
-                                        ? AppColors.green
-                                        : AppColors.brandOrange,
-                                    size: 22,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        txn.description,
-                                        style: Theme.of(context).textTheme.titleMedium,
-                                      ),
-                                      Text(
-                                        DateFormatter.display(txn.date),
-                                        style: Theme.of(context).textTheme.bodySmall,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                Text(
-                                  CurrencyFormatter.format(txn.amount),
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 15,
-                                    color: txn.type == TransactionType.profit
-                                        ? AppColors.green
-                                        : Theme.of(context).colorScheme.onSurface,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ).toList(),
-                    ),
+                    index: 11,
+                    child: HomeRecentActivity(transactions: provider.recentTransactions),
                   ),
                   const SizedBox(height: 88),
                 ],
@@ -273,6 +277,81 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         );
       },
+    );
+  }
+
+  String _riskFor(String id) {
+    switch (id) {
+      case 'PLAN003':
+        return 'High';
+      case 'PLAN002':
+        return 'Medium';
+      default:
+        return 'Low';
+    }
+  }
+
+  List<InvestmentPlanModel> _featuredPlansForHome(HomeProvider provider) {
+    if (provider.featuredPlans.isNotEmpty) {
+      return provider.featuredPlans.take(3).toList();
+    }
+    return FeaturedPlansCatalog.plans;
+  }
+
+  void _openFeaturedPlan(BuildContext context, InvestmentPlanModel plan) {
+    context.push('${AppRoutes.featuredPlan}/${plan.id}', extra: plan);
+  }
+}
+
+class _GoalPlansPromo extends StatelessWidget {
+  final VoidCallback onTap;
+  const _GoalPlansPromo({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Ink(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [AppColors.brandPrimary.withValues(alpha: 0.12), AppColors.brandPink.withValues(alpha: 0.08)],
+            ),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: AppColors.brandPink.withValues(alpha: 0.2)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.brandPink.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(Icons.flag_rounded, color: AppColors.brandPink, size: 28),
+              ),
+              const SizedBox(width: 14),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Start a Goal Plan', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                    SizedBox(height: 4),
+                    Text(
+                      'Earn 8%–16% p.a. • House • Education • Marriage • Vehicle • Retirement',
+                      style: TextStyle(fontSize: 12, height: 1.3, color: AppColors.green),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: AppColors.brandPink),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

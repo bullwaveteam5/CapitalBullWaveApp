@@ -29,9 +29,39 @@ DEMO_HOLDINGS = [
 ]
 
 PLANS = [
-    ('PLAN001', 'BullWave Premium Plan', 1000000, 1.5, 18.0, 'High-yield investment plan with monthly returns', True),
-    ('PLAN002', 'BullWave Growth Plan', 500000, 1.2, 14.4, 'Balanced growth with moderate risk', True),
-    ('PLAN003', 'BullWave Elite Plan', 5000000, 2.0, 24.0, 'Premium plan for high net worth investors', True),
+    (
+        'PLAN001',
+        'BullWave Alpha Premier',
+        1000000,
+        0.25,
+        0.25,
+        0.25,
+        3.0,
+        'Entry-tier premium plan — ₹10 lakh minimum with 0.25% monthly returns.',
+        True,
+    ),
+    (
+        'PLAN002',
+        'BullWave Platinum Reserve',
+        5000000,
+        3.0,
+        3.0,
+        3.0,
+        36.0,
+        'Mid-tier wealth plan — ₹50 lakh minimum with 3% monthly returns.',
+        True,
+    ),
+    (
+        'PLAN003',
+        'BullWave Sovereign Crown',
+        10000000,
+        4.0,
+        4.0,
+        4.0,
+        48.0,
+        'Flagship HNI plan — ₹1 crore minimum with 4% monthly returns.',
+        True,
+    ),
 ]
 
 
@@ -56,15 +86,21 @@ class Command(BaseCommand):
                     'name': row[1],
                     'minimum_investment': Decimal(str(row[2])),
                     'monthly_return_rate': Decimal(str(row[3])),
-                    'annual_return_rate': Decimal(str(row[4])),
-                    'description': row[5],
-                    'is_featured': row[6],
+                    'monthly_return_min': Decimal(str(row[4])),
+                    'monthly_return_max': Decimal(str(row[5])),
+                    'annual_return_rate': Decimal(str(row[6])),
+                    'description': row[7],
+                    'is_featured': row[8],
                 },
             )
 
     def _seed_faqs(self):
         investment_faqs = [
-            ('What returns can I expect?', 'Our Premium Plan offers up to 18% annual returns, credited monthly to your wallet.'),
+            (
+                'What returns can I expect?',
+                'Alpha Premier offers 0.25% monthly, Platinum Reserve offers 3% monthly, '
+                'and Sovereign Crown offers 4% monthly — all credited to your wallet.',
+            ),
             ('Can I withdraw anytime?', 'Yes, you can withdraw your profits anytime. Principal withdrawal is subject to plan terms.'),
             ('What documents are required?', 'PAN, Aadhaar, bank details, and a selfie for KYC verification are required.'),
         ]
@@ -72,8 +108,8 @@ class Command(BaseCommand):
             InvestmentFaq.objects.update_or_create(question=q, defaults={'answer': a, 'order': i})
 
         support_faqs = [
-            ('What is the minimum investment amount?', 'The minimum investment amount is ₹10,00,000 for our Premium Plan.'),
-            ('How are returns calculated?', 'Returns are calculated monthly based on your investment amount and the plan return rate.'),
+            ('What is the minimum investment amount?', 'Plans start at ₹10 lakh (Alpha Premier), ₹50 lakh (Platinum Reserve), and ₹1 crore (Sovereign Crown).'),
+            ('How are returns calculated?', 'Returns are fixed monthly percentages based on your chosen plan and invested amount.'),
             ('How long does withdrawal take?', 'Withdrawals are processed within 2-3 business days.'),
             ('Is my investment secure?', 'All investments follow strict compliance guidelines and regulated instruments.'),
         ]

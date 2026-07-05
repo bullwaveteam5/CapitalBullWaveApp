@@ -15,6 +15,8 @@ DIVIDEND_CACHE_SECONDS = 3600
 def _yahoo_ticker(nse_symbol):
     if nse_symbol.startswith('^'):
         return nse_symbol
+    if '=' in nse_symbol:
+        return nse_symbol
     return f'{nse_symbol}.NS'
 
 

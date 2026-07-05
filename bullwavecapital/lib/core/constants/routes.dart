@@ -31,6 +31,11 @@ class AppRoutes {
   static const String deposit = '/deposit';
   static const String depositSuccess = '/deposit/success';
   static const String investmentDetails = '/investment-details';
+  static const String featuredPlan = '/invest/plan';
+  static const String featuredPlansList = '/invest/plans';
+  static const String goalPlans = '/goals';
+  static const String createGoal = '/goals/create';
+  static const String goalDetail = '/goal-detail';
   static const String bankDetails = '/bank-details';
   static const String privacy = '/privacy';
   static const String terms = '/terms';
@@ -43,8 +48,13 @@ class AppRoutes {
   static const String priceAlerts = '/price-alerts';
   static const String sipTracker = '/sip-tracker';
   static const String optionChain = '/option-chain';
+  static const String fnoVerification = '/fno/verification';
   static const String paperTrading = '/paper-trading';
   static const String portfolioAnalytics = '/portfolio-analytics';
   static const String dividendTracker = '/dividend-tracker';
   static const String aiAssistant = '/ai-assistant';
+  static const String commodities = '/commodities';
+  static const String commodityDetail = '/commodity-detail';
+  static const String commodityOptionChain = '/commodity-options';
+  static const String ipoCalendar = '/ipo-calendar';
 }

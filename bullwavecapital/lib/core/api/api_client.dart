@@ -130,13 +130,45 @@ class ApiClient {
     required Map<String, String> fields,
     required List<http.MultipartFile> files,
     bool auth = true,
+    Duration? timeout,
   }) async {
     final request = http.MultipartRequest('POST', _uri(path));
     request.headers.addAll(_headers(auth: auth, json: false));
     request.fields.addAll(fields);
     request.files.addAll(files);
-    final streamed = await request.send();
+    final streamed = await request.send().timeout(timeout ?? const Duration(seconds: 60));
     final response = await http.Response.fromStream(streamed);
     return _decode(response);
+  }
+
+  /// POST JSON body and return raw response bytes (e.g. AI TTS audio).
+  Future<List<int>> postBytes(
+    String path, {
+    Map<String, dynamic>? body,
+    bool auth = true,
+    Duration? timeout,
+  }) async {
+    final response = await http
+        .post(
+          _uri(path),
+          headers: _headers(auth: auth),
+          body: body == null ? null : jsonEncode(body),
+        )
+        .timeout(timeout ?? const Duration(seconds: 60));
+
+    if (response.statusCode >= 400) {
+      String message = 'Request failed (${response.statusCode})';
+      if (response.body.isNotEmpty) {
+        try {
+          final decoded = jsonDecode(response.body);
+          if (decoded is Map) {
+            final detail = decoded['detail'];
+            if (detail is String && detail.isNotEmpty) message = detail;
+          }
+        } catch (_) {}
+      }
+      throw ApiException(response.statusCode, message);
+    }
+    return response.bodyBytes;
   }
 }

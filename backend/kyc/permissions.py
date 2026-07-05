@@ -5,6 +5,7 @@ from rest_framework.permissions import BasePermission
 from accounts.models import User
 
 from .manual_service import user_kyc_is_verified
+from .fno_service import user_fno_is_verified
 from .models import KycProfile
 from .service import get_or_create_profile
 
@@ -20,3 +21,12 @@ class IsKycVerified(BasePermission):
         # Legacy Cashfree profile check
         profile = get_or_create_profile(request.user)
         return profile.overall_status == KycProfile.OverallStatus.VERIFIED
+
+
+class IsFnoVerified(BasePermission):
+    message = 'Complete F&O eligibility verification to access derivatives.'
+
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        return user_fno_is_verified(request.user)

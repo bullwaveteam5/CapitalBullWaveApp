@@ -1,6 +1,7 @@
 from django.core.management.base import BaseCommand
 
 from finance.profit_service import credit_monthly_investment_returns
+from finance.goal_service import process_due_goal_contributions, send_upcoming_reminders
 from stocks.alert_service import process_price_alerts
 from stocks.sip_service import process_due_sip_installments
 
@@ -12,10 +13,13 @@ class Command(BaseCommand):
         parser.add_argument('--sip', action='store_true', help='Process due SIP installments')
         parser.add_argument('--alerts', action='store_true', help='Check price alerts')
         parser.add_argument('--profits', action='store_true', help='Credit monthly investment returns')
+        parser.add_argument('--goals', action='store_true', help='Process goal plan installments')
         parser.add_argument('--all', action='store_true', help='Run all jobs')
 
     def handle(self, *args, **options):
-        run_all = options['all'] or not any([options['sip'], options['alerts'], options['profits']])
+        run_all = options['all'] or not any([
+            options['sip'], options['alerts'], options['profits'], options['goals'],
+        ])
 
         if run_all or options['sip']:
             count = process_due_sip_installments()
@@ -28,3 +32,12 @@ class Command(BaseCommand):
         if run_all or options['profits']:
             count = credit_monthly_investment_returns()
             self.stdout.write(self.style.SUCCESS(f'Profits: credited {count} investment return(s).'))
+
+        if run_all or options['goals']:
+            due = process_due_goal_contributions()
+            upcoming = send_upcoming_reminders()
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f'Goals: processed {due} installment(s), sent {upcoming} upcoming reminder(s).'
+                )
+            )

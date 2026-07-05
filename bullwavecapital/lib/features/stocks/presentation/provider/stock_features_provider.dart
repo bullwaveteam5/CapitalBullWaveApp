@@ -24,6 +24,11 @@ class StockFeaturesProvider extends ChangeNotifier {
   List<DividendModel> _dividends = [];
   List<ScreenerStockModel> _screenerResults = [];
   List<String> _screenerSectors = ['All'];
+  List<IpoEventModel> _ipoEvents = [];
+  List<IpoHoldingModel> _ipoHoldings = [];
+  List<IpoTradeModel> _ipoTrades = [];
+  String? _ipoTradeError;
+  bool _isIpoLoading = false;
   final Map<String, _SymbolOptionChain> _optionChains = {};
   List<AiMessageModel> _aiMessages = [];
   List<String> _aiSuggestions = [
@@ -59,6 +64,21 @@ class StockFeaturesProvider extends ChangeNotifier {
 
   List<ScreenerStockModel> get screenerResults => _screenerResults;
   List<String> get sectors => _screenerSectors;
+  List<IpoEventModel> get ipoEvents => _ipoEvents;
+  List<IpoHoldingModel> get ipoHoldings => _ipoHoldings;
+  List<IpoTradeModel> get ipoTrades => _ipoTrades;
+  String? get ipoTradeError => _ipoTradeError;
+  bool get isIpoLoading => _isIpoLoading;
+
+  List<IpoEventModel> get featuredIpos =>
+      _ipoEvents.where((e) => e.isOpen || e.isUpcoming).take(3).toList();
+
+  IpoHoldingModel? ipoHoldingFor(String ipoId) {
+    for (final h in _ipoHoldings) {
+      if (h.ipoId == ipoId) return h;
+    }
+    return null;
+  }
 
   List<OptionContractModel> optionChain(String symbol) => _chainState(symbol).contracts;
   bool isOptionChainLoading(String symbol) => _chainState(symbol).loading;
@@ -148,10 +168,12 @@ class StockFeaturesProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      // Fast path — show chain immediately from cached/fallback spot.
       try {
-        final cached = await _api.getOptionChain(symbol, expiry: expiry, fast: true);
-        if (cached.contracts.isNotEmpty) {
-          _applyChain(state, cached);
+        final fast = await _api.getOptionChain(symbol, expiry: expiry, fast: true);
+        if (fast.underlyingValue > 0 || fast.contracts.isNotEmpty) {
+          _applyChain(state, fast);
+          state.error = null;
           notifyListeners();
         }
       } catch (_) {}
@@ -164,10 +186,17 @@ class StockFeaturesProvider extends ChangeNotifier {
         state.error = null;
       }
     } on ApiException catch (e) {
-      if (state.contracts.isEmpty) state.error = e.message;
+      if (state.contracts.isEmpty) {
+        if (e.statusCode == 403 &&
+            e.message.toLowerCase().contains('f&o')) {
+          state.error = '__fno_required__';
+        } else {
+          state.error = e.message;
+        }
+      }
     } catch (_) {
       if (state.contracts.isEmpty) {
-        state.error = 'Could not load F&O chain. Check server connection.';
+        state.error = 'Could not load F&O chain. Check that Django is running on port 8000.';
       }
     }
 
@@ -292,7 +321,7 @@ class StockFeaturesProvider extends ChangeNotifier {
           AiMessageModel(
             role: 'assistant',
             content:
-                'Hi! I\'m your BullWave AI Stock Assistant. Ask me about stocks, sectors, or indicators.',
+                'Hi! I\'m BullWave AI. Ask about your portfolio, stocks, watchlist, wallet, Goal Plans, or how to use any app feature.',
             time: DateTime.now(),
           ),
         ];
@@ -314,7 +343,7 @@ class StockFeaturesProvider extends ChangeNotifier {
       _aiMessages = [
         AiMessageModel(
           role: 'assistant',
-          content: 'Chat cleared. What would you like to know about the markets?',
+          content: 'Chat cleared. Ask about your portfolio, stocks, or any BullWave feature.',
           time: DateTime.now(),
         ),
       ];
@@ -352,5 +381,41 @@ class StockFeaturesProvider extends ChangeNotifier {
     }
     _isAiLoading = false;
     notifyListeners();
+  }
+
+  Future<void> refreshIpoCalendar({int? limit}) async {
+    _isIpoLoading = true;
+    notifyListeners();
+    try {
+      await Future.wait([
+        _api.getIpoCalendar(limit: limit).then((v) => _ipoEvents = v),
+        _api.getIpoHoldings().then((v) => _ipoHoldings = v),
+        _api.getIpoTrades().then((v) => _ipoTrades = v),
+      ]);
+    } catch (_) {}
+    _isIpoLoading = false;
+    notifyListeners();
+  }
+
+  Future<bool> placeIpoOrder({
+    required String ipoId,
+    required String side,
+    int lots = 1,
+  }) async {
+    _ipoTradeError = null;
+    notifyListeners();
+    try {
+      final trade = await _api.placeIpoOrder(ipoId: ipoId, side: side, lots: lots);
+      _ipoTrades = [trade, ..._ipoTrades.where((t) => t.id != trade.id)];
+      await Future.wait([
+        _api.getIpoHoldings().then((v) => _ipoHoldings = v),
+      ]);
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _ipoTradeError = e is ApiException ? e.message : 'IPO order failed. Try again.';
+      notifyListeners();
+      return false;
+    }
   }
 }

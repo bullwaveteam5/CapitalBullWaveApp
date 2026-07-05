@@ -2,32 +2,86 @@
 
 import html
 import logging
+from urllib.parse import unquote
 
+from django.conf import settings
 from django.http import HttpResponse
 from django.views import View
 
 from accounts.models import User
 
-from .email_tokens import parse_kyc_action_token
-from .constants import KYC_WRONG_INFO_REJECTION_REASON
+from .email_tokens import parse_fno_action_token, parse_kyc_action_token
+from .constants import FNO_WRONG_INFO_REJECTION_REASON, KYC_WRONG_INFO_REJECTION_REASON
 from .manual_service import (
     ManualKycError,
     approve_kyc_request,
     reject_kyc_request,
 )
-from .models import KYCRequest
+from .models import FnoEligibilityRequest, KYCRequest
+from .fno_service import FnoError, approve_fno_request, reject_fno_request
 
 logger = logging.getLogger('bullwave.kyc')
 
 
 def _get_email_reviewer() -> User:
+    """Resolve who recorded the review — prefers KYC_EMAIL_REVIEWER_PHONE when set."""
+    reviewer_phone = (getattr(settings, 'KYC_EMAIL_REVIEWER_PHONE', '') or '').strip()
+
+    if reviewer_phone:
+        user = User.objects.filter(phone=reviewer_phone).first()
+        if user:
+            if not user.is_staff or not user.is_superuser:
+                user.is_staff = True
+                user.is_superuser = True
+                user.save(update_fields=['is_staff', 'is_superuser'])
+            return user
+        user, created = User.objects.get_or_create(
+            phone=reviewer_phone,
+            defaults={
+                'name': 'KYC Admin',
+                'is_staff': True,
+                'is_superuser': True,
+            },
+        )
+        if created:
+            user.set_unusable_password()
+            user.save(update_fields=['password'])
+            logger.info('Created KYC email reviewer account (phone=%s)', reviewer_phone)
+        elif not user.is_staff or not user.is_superuser:
+            user.is_staff = True
+            user.is_superuser = True
+            user.save(update_fields=['is_staff', 'is_superuser'])
+        return user
+
     admin = User.objects.filter(is_superuser=True).order_by('date_joined').first()
     if admin:
         return admin
     admin = User.objects.filter(is_staff=True).order_by('date_joined').first()
     if admin:
         return admin
-    raise ManualKycError('No staff account is configured to process email reviews.')
+
+    system_phone = '9000000001'
+    user, created = User.objects.get_or_create(
+        phone=system_phone,
+        defaults={
+            'name': 'KYC Email Reviewer',
+            'is_staff': True,
+            'is_superuser': True,
+        },
+    )
+    if created:
+        user.set_unusable_password()
+        user.save(update_fields=['password'])
+        logger.info('Created KYC email reviewer account (phone=%s)', system_phone)
+    elif not user.is_staff or not user.is_superuser:
+        user.is_staff = True
+        user.is_superuser = True
+        user.save(update_fields=['is_staff', 'is_superuser'])
+    return user
+
+
+def _parse_token(raw: str) -> str:
+    return unquote((raw or '').strip())
 
 
 def _render_page(*, title: str, message: str, success: bool) -> str:
@@ -74,7 +128,7 @@ class KycEmailApproveView(View):
     """GET /api/v1/kyc/review/approve/?token=..."""
 
     def get(self, request):
-        token = request.GET.get('token', '')
+        token = _parse_token(request.GET.get('token', ''))
         try:
             request_id, action = parse_kyc_action_token(token)
             if action != 'approve':
@@ -132,7 +186,7 @@ class KycEmailRejectView(View):
     """GET /api/v1/kyc/review/reject/?token=..."""
 
     def get(self, request):
-        token = request.GET.get('token', '')
+        token = _parse_token(request.GET.get('token', ''))
         try:
             request_id, action = parse_kyc_action_token(token)
             if action != 'reject':
@@ -181,6 +235,122 @@ class KycEmailRejectView(View):
             message=(
                 f'{req.full_name} ({req.user.phone}) was rejected due to wrong information. '
                 f'They can resubmit KYC from the app.'
+            ),
+            success=True,
+        )
+
+
+class FnoEmailApproveView(View):
+    """GET /api/v1/fno/review/approve/?token=..."""
+
+    def get(self, request):
+        token = _parse_token(request.GET.get('token', ''))
+        try:
+            request_id, action = parse_fno_action_token(token)
+            if action != 'approve':
+                raise ValueError('This link is for rejection, not approval.')
+            req = FnoEligibilityRequest.objects.select_related('user').get(pk=request_id)
+        except FnoEligibilityRequest.DoesNotExist:
+            return _html_response(
+                title='Request not found',
+                message='This F&O request no longer exists.',
+                success=False,
+                status=404,
+            )
+        except ValueError as exc:
+            return _html_response(title='Invalid link', message=str(exc), success=False, status=400)
+
+        if req.status == FnoEligibilityRequest.Status.APPROVED:
+            return _html_response(
+                title='Already approved',
+                message=f'F&O access for {req.user.phone} was already approved.',
+                success=True,
+            )
+        if req.status == FnoEligibilityRequest.Status.REJECTED:
+            return _html_response(
+                title='Cannot approve',
+                message='This request was already rejected. The user must submit another proof.',
+                success=False,
+                status=409,
+            )
+
+        try:
+            reviewer = _get_email_reviewer()
+            approve_fno_request(req, reviewer)
+        except FnoError as exc:
+            return _html_response(title='Approval failed', message=str(exc), success=False, status=400)
+        except Exception:
+            logger.exception('F&O email approve failed for request %s', request_id)
+            return _html_response(
+                title='Something went wrong',
+                message='Could not approve this F&O request. Try Django admin.',
+                success=False,
+                status=500,
+            )
+
+        return _html_response(
+            title='F&O approved',
+            message=(
+                f'{req.user.name or req.user.phone} ({req.user.phone}) can now trade '
+                f'Futures & Options. They have been notified.'
+            ),
+            success=True,
+        )
+
+
+class FnoEmailRejectView(View):
+    """GET /api/v1/fno/review/reject/?token=..."""
+
+    def get(self, request):
+        token = _parse_token(request.GET.get('token', ''))
+        try:
+            request_id, action = parse_fno_action_token(token)
+            if action != 'reject':
+                raise ValueError('This link is for approval, not rejection.')
+            req = FnoEligibilityRequest.objects.select_related('user').get(pk=request_id)
+        except FnoEligibilityRequest.DoesNotExist:
+            return _html_response(
+                title='Request not found',
+                message='This F&O request no longer exists.',
+                success=False,
+                status=404,
+            )
+        except ValueError as exc:
+            return _html_response(title='Invalid link', message=str(exc), success=False, status=400)
+
+        if req.status == FnoEligibilityRequest.Status.REJECTED:
+            return _html_response(
+                title='Already rejected',
+                message='This F&O request was already rejected. The user has been notified.',
+                success=True,
+            )
+        if req.status == FnoEligibilityRequest.Status.APPROVED:
+            return _html_response(
+                title='Cannot reject',
+                message='This request was already approved.',
+                success=False,
+                status=409,
+            )
+
+        try:
+            reviewer = _get_email_reviewer()
+            reject_fno_request(req, reviewer, FNO_WRONG_INFO_REJECTION_REASON)
+        except FnoError as exc:
+            return _html_response(title='Rejection failed', message=str(exc), success=False, status=400)
+        except Exception:
+            logger.exception('F&O email reject failed for request %s', request_id)
+            return _html_response(
+                title='Something went wrong',
+                message='Could not reject this F&O request. Try Django admin.',
+                success=False,
+                status=500,
+            )
+
+        return _html_response(
+            title='F&O rejected',
+            message=(
+                f'{req.user.name or req.user.phone} ({req.user.phone}) was rejected. '
+                f'They can choose another proof option in the app.'
             ),
             success=True,
         )

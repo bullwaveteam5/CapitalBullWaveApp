@@ -46,5 +46,12 @@ class AiConfig(AppConfig):
 
         if ready:
             logger.info('AI assistant ready (provider=%s, model=%s)', provider, model)
+            if (settings.OPENAI_API_KEY or '').strip():
+                voice = (settings.OPENAI_TTS_VOICE or 'nova').strip()
+                logger.info(
+                    'AI voice ready (OpenAI TTS=%s, STT=%s)',
+                    voice,
+                    settings.OPENAI_STT_MODEL if settings.OPENAI_STT_ENABLED else 'disabled',
+                )
         else:
             logger.warning('AI assistant NOT configured for provider=%s', provider)

@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/constants/routes.dart';
+import '../../../fno/fno_navigation.dart';
 import '../../../../core/theme/app_decorations.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../features/home/presentation/widgets/market_overview.dart';
 import '../provider/stock_market_provider.dart';
+import '../widgets/explore_feature_tile.dart';
 import '../widgets/stock_list_tile.dart';
-import '../widgets/technical_indicators_panel.dart';
 
 class StockMarketsScreen extends StatefulWidget {
   const StockMarketsScreen({super.key});
@@ -95,17 +96,18 @@ class _StockMarketsScreenState extends State<StockMarketsScreen> {
                         style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
                       ),
                       const SizedBox(height: 12),
-                      MarketsFeatureGrid(
-                        items: [
-                          (icon: Icons.star_rounded, label: 'Watchlist', color: AppColors.yellow, onTap: () => context.push(AppRoutes.watchlist)),
-                          (icon: Icons.filter_alt_outlined, label: 'Screener', color: AppColors.blue, onTap: () => context.push(AppRoutes.stockScreener)),
-                          (icon: Icons.newspaper_outlined, label: 'News', color: AppColors.green, onTap: () => context.push(AppRoutes.stockNews)),
-                          (icon: Icons.smart_toy_outlined, label: 'AI Assist', color: const Color(0xFF8B5CF6), onTap: () => context.push(AppRoutes.aiAssistant)),
-                          (icon: Icons.notifications_active_outlined, label: 'Alerts', color: AppColors.red, onTap: () => context.push(AppRoutes.priceAlerts)),
-                          (icon: Icons.savings_outlined, label: 'SIP', color: AppColors.green, onTap: () => context.push(AppRoutes.sipTracker)),
-                          (icon: Icons.show_chart_outlined, label: 'Paper Trade', color: AppColors.blue, onTap: () => context.push(AppRoutes.paperTrading)),
-                          (icon: Icons.account_balance_outlined, label: 'F&O Chain', color: const Color(0xFF6366F1), onTap: () => context.push(AppRoutes.optionChain)),
-                        ],
+                      ExploreFeatureGrid(
+                        items: MarketsExploreShortcuts.all(
+                          watchlist: () => context.push(AppRoutes.watchlist),
+                          screener: () => context.push(AppRoutes.stockScreener),
+                          news: () => context.push(AppRoutes.stockNews),
+                          commodities: () => context.push(AppRoutes.commodities),
+                          alerts: () => context.push(AppRoutes.priceAlerts),
+                          sip: () => context.push(AppRoutes.sipTracker),
+                          paperTrade: () => openFnoFeature(context, AppRoutes.paperTrading),
+                          fnoChain: () => openFnoFeature(context, AppRoutes.optionChain),
+                          ipoCalendar: () => context.push(AppRoutes.ipoCalendar),
+                        ),
                       ),
                       const SizedBox(height: 20),
                       Row(
@@ -115,9 +117,16 @@ class _StockMarketsScreenState extends State<StockMarketsScreen> {
                             market.searchQuery.isEmpty ? 'Trending Stocks' : 'Search Results',
                             style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
                           ),
-                          TextButton(
-                            onPressed: () => context.push(AppRoutes.watchlist),
-                            child: const Text('Watchlist', style: TextStyle(color: AppColors.green, fontWeight: FontWeight.w700)),
+                          Padding(
+                            padding: const EdgeInsets.only(right: 52),
+                            child: TextButton.icon(
+                              onPressed: () => context.push(AppRoutes.watchlist),
+                              icon: const Icon(Icons.bookmark_outline_rounded, size: 18, color: AppColors.brandPink),
+                              label: const Text(
+                                'Watchlist',
+                                style: TextStyle(color: AppColors.brandPink, fontWeight: FontWeight.w700),
+                              ),
+                            ),
                           ),
                         ],
                       ),

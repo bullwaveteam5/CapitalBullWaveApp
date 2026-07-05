@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
-import 'colors.dart';
 
-/// Theme-aware palette — use via `context.appColors` instead of static [AppColors]
-/// for surfaces and text that must adapt in light/dark mode.
 @immutable
 class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
   final Color background;
@@ -28,27 +25,27 @@ class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
   });
 
   static const dark = AppThemeExtension(
-    background: Color(0xFF0A0C10),
-    surface: Color(0xFF131820),
-    surfaceSecondary: Color(0xFF1C2330),
-    border: Color(0xFF2A3344),
-    textPrimary: Color(0xFFFFFFFF),
-    textSecondary: Color(0xFF94A3B8),
-    textMuted: Color(0xFF64748B),
-    shimmerBase: Color(0xFF1C2330),
-    shimmerHighlight: Color(0xFF2A3344),
+    background: Color(0xFF0A0612),
+    surface: Color(0xFF16102A),
+    surfaceSecondary: Color(0xFF1F1638),
+    border: Color(0xFF3D2E5C),
+    textPrimary: Color(0xFFFAF5FF),
+    textSecondary: Color(0xFFC4B5FD),
+    textMuted: Color(0xFF8B7DA8),
+    shimmerBase: Color(0xFF1F1638),
+    shimmerHighlight: Color(0xFF2A1F45),
   );
 
   static const light = AppThemeExtension(
-    background: Color(0xFFF5F5F7),
+    background: Color(0xFFFDF4FF),
     surface: Color(0xFFFFFFFF),
-    surfaceSecondary: Color(0xFFEFEFF4),
-    border: Color(0xFFD1D1D6),
-    textPrimary: Color(0xFF1C1C1E),
-    textSecondary: Color(0xFF3A3A3C),
-    textMuted: Color(0xFF636366),
-    shimmerBase: Color(0xFFE5E5EA),
-    shimmerHighlight: Color(0xFFF5F5F7),
+    surfaceSecondary: Color(0xFFF3E8FF),
+    border: Color(0xFFE9D5FF),
+    textPrimary: Color(0xFF1E1033),
+    textSecondary: Color(0xFF5B21B6),
+    textMuted: Color(0xFF7C3AED),
+    shimmerBase: Color(0xFFF3E8FF),
+    shimmerHighlight: Color(0xFFFDF4FF),
   );
 
   @override

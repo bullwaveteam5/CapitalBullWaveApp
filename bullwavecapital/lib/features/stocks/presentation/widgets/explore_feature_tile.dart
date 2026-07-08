@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/constants/assets.dart';
 import '../../../../core/theme/app_theme_extension.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/widgets/modern_icon_badge.dart';
+import '../../../../core/widgets/scale_tap.dart';
 
-/// Symmetric explore grid with centered icons and labels.
+/// Compact explore shortcuts — small icon tile + label (premium light style).
 class ExploreFeatureItem {
   final String iconAsset;
   final String label;
@@ -34,99 +36,98 @@ class ExploreFeatureGrid extends StatelessWidget {
       physics: const NeverScrollableScrollPhysics(),
       padding: EdgeInsets.zero,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 4,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
-        childAspectRatio: 0.9,
+        crossAxisCount: 5,
+        mainAxisSpacing: 4,
+        crossAxisSpacing: 4,
+        childAspectRatio: 0.78,
       ),
       itemCount: items.length,
-      itemBuilder: (context, index) => _ExploreTile(item: items[index], colors: context.appColors),
+      itemBuilder: (context, index) => _ExploreTile(item: items[index]),
     );
   }
 }
 
 class _ExploreTile extends StatelessWidget {
   final ExploreFeatureItem item;
-  final AppThemeExtension colors;
 
-  const _ExploreTile({required this.item, required this.colors});
+  const _ExploreTile({required this.item});
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: item.onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: Ink(
-          width: double.infinity,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            color: colors.surface,
-            border: Border.all(color: item.gradient.first.withValues(alpha: 0.16)),
-            boxShadow: [
-              BoxShadow(
-                color: item.gradient.last.withValues(alpha: 0.1),
-                blurRadius: 14,
-                offset: const Offset(0, 5),
-              ),
-            ],
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
-            child: Stack(
-              alignment: Alignment.center,
-              clipBehavior: Clip.none,
-              children: [
-                Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    ModernIconBadge(
-                      asset: item.iconAsset,
-                      gradient: item.gradient,
-                      size: 48,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      item.label,
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 10.5,
-                        height: 1.2,
-                        letterSpacing: -0.1,
-                        color: colors.textPrimary,
+    final colors = context.appColors;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return ScaleTap(
+      onTap: item.onTap,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.start,
+        children: [
+          Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.center,
+            children: [
+              Container(
+                decoration: isDark
+                    ? null
+                    : BoxDecoration(
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(
+                            color: item.gradient.first.withValues(alpha: 0.12),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
+                child: ModernIconBadge(
+                  asset: item.iconAsset,
+                  gradient: item.gradient,
+                  size: 42,
                 ),
-                if (item.badge != null)
-                  Positioned(
-                    top: 0,
-                    right: 0,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                      decoration: BoxDecoration(
-                        gradient: AppColors.accentGradient,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        item.badge!,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 7,
-                          fontWeight: FontWeight.w800,
+              ),
+              if (item.badge != null)
+                Positioned(
+                  top: -4,
+                  right: -2,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                    decoration: BoxDecoration(
+                      gradient: AppColors.accentGradient,
+                      borderRadius: BorderRadius.circular(5),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.brandPink.withValues(alpha: 0.25),
+                          blurRadius: 4,
                         ),
+                      ],
+                    ),
+                    child: Text(
+                      item.badge!,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 6.5,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
                   ),
-              ],
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            item.label,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(
+              fontWeight: FontWeight.w600,
+              fontSize: 9.5,
+              height: 1.15,
+              letterSpacing: -0.1,
+              color: colors.textPrimary,
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -186,13 +187,13 @@ class MarketsExploreShortcuts {
       ),
       ExploreFeatureItem(
         iconAsset: AppAssets.featPaperTrade,
-        label: 'Paper Trade',
+        label: 'Paper',
         gradient: const [Color(0xFF0EA5E9), Color(0xFF38BDF8)],
         onTap: paperTrade,
       ),
       ExploreFeatureItem(
         iconAsset: AppAssets.featFno,
-        label: 'F&O Chain',
+        label: 'F&O',
         gradient: const [Color(0xFF7C3AED), Color(0xFFA855F7)],
         onTap: fnoChain,
         badge: 'F&O',

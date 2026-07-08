@@ -25,15 +25,15 @@ class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
   });
 
   static const dark = AppThemeExtension(
-    background: Color(0xFF0A0612),
-    surface: Color(0xFF16102A),
-    surfaceSecondary: Color(0xFF1F1638),
-    border: Color(0xFF3D2E5C),
-    textPrimary: Color(0xFFFAF5FF),
-    textSecondary: Color(0xFFC4B5FD),
-    textMuted: Color(0xFF8B7DA8),
-    shimmerBase: Color(0xFF1F1638),
-    shimmerHighlight: Color(0xFF2A1F45),
+    background: Color(0xFF000000),
+    surface: Color(0xFF141414),
+    surfaceSecondary: Color(0xFF1C1C1C),
+    border: Color(0xFF2A2A2A),
+    textPrimary: Color(0xFFFFFFFF),
+    textSecondary: Color(0xFF8E8E93),
+    textMuted: Color(0xFF636366),
+    shimmerBase: Color(0xFF1C1C1C),
+    shimmerHighlight: Color(0xFF2C2C2E),
   );
 
   static const light = AppThemeExtension(

@@ -70,8 +70,8 @@ class _FeaturedPlanScreenState extends State<FeaturedPlanScreen> {
     return ChangeNotifierProvider.value(
       value: _provider,
       child: Scaffold(
-        backgroundColor: const Color(0xFF0B0F14),
-        appBar: CustomAppBar(title: 'Featured Plan'),
+        backgroundColor: Colors.transparent,
+        appBar: const CustomAppBar(title: 'Featured Plan'),
         body: Consumer<FeaturedPlanProvider>(
           builder: (context, provider, _) {
             if (provider.isLoading) {

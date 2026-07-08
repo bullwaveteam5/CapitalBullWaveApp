@@ -16,6 +16,7 @@ import '../../../../core/theme/colors.dart';
 
 import '../../../../core/utils/formatters.dart';
 
+import '../../../../core/widgets/custom_app_bar.dart';
 import '../../../../core/widgets/loading_card.dart';
 
 import '../provider/stock_features_provider.dart';
@@ -116,25 +117,9 @@ class _OptionChainScreenState extends State<OptionChainScreen> {
 
     return Scaffold(
 
-      backgroundColor: colors.background,
+      backgroundColor: Colors.transparent,
 
-      appBar: AppBar(
-
-        backgroundColor: colors.background,
-
-        surfaceTintColor: Colors.transparent,
-
-        leading: IconButton(
-
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-
-          onPressed: () => context.pop(),
-
-        ),
-
-        title: const Text('F&O Chain', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
-
-      ),
+      appBar: const CustomAppBar(title: 'F&O Chain'),
 
       body: Column(
 

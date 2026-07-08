@@ -4,6 +4,7 @@ import 'core/api/bullwave_api.dart';
 import 'core/api/token_storage.dart';
 import 'core/routes/app_router.dart';
 import 'core/theme/app_theme.dart';
+import 'core/theme/premium_background.dart';
 import 'features/authentication/presentation/provider/auth_provider.dart';
 import 'features/kyc/presentation/provider/kyc_flow_provider.dart';
 import 'features/home/presentation/provider/home_provider.dart';
@@ -77,6 +78,10 @@ class _BullWaveAppState extends State<BullWaveApp> {
             darkTheme: AppTheme.darkTheme,
             themeMode: appProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
             routerConfig: _router,
+            builder: (context, child) {
+              if (child == null) return const SizedBox.shrink();
+              return PremiumAppBackdrop(child: child);
+            },
           );
         },
       ),

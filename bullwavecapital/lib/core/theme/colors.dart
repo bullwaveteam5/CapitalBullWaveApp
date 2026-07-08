@@ -23,14 +23,14 @@ class AppColors {
   static const Color brandTeal = Color(0xFF2DD4BF);
   static const Color brandCyan = Color(0xFF22D3EE);
 
-  // ── Surfaces (deep violet-tinted darks) ──
-  static const Color background = Color(0xFF0A0612);
-  static const Color backgroundElevated = Color(0xFF100818);
-  static const Color surface = Color(0xFF16102A);
-  static const Color surfaceSecondary = Color(0xFF1F1638);
-  static const Color surfaceHighlight = Color(0xFF2A1F45);
-  static const Color border = Color(0xFF3D2E5C);
-  static const Color borderSubtle = Color(0xFF251A3D);
+  // ── Surfaces (premium dark — pure black + glass cards) ──
+  static const Color background = Color(0xFF000000);
+  static const Color backgroundElevated = Color(0xFF0A0A0A);
+  static const Color surface = Color(0xFF141414);
+  static const Color surfaceSecondary = Color(0xFF1C1C1C);
+  static const Color surfaceHighlight = Color(0xFF2C2C2E);
+  static const Color border = Color(0xFF2A2A2A);
+  static const Color borderSubtle = Color(0xFF1A1A1A);
 
   // ── Semantic ──
   static const Color green = Color(0xFF34D399);
@@ -48,10 +48,10 @@ class AppColors {
   static const Color commodityMetal = Color(0xFF2DD4BF);
 
   // ── Text ──
-  static const Color textPrimary = Color(0xFFFAF5FF);
-  static const Color textSecondary = Color(0xFFC4B5FD);
-  static const Color textMuted = Color(0xFF8B7DA8);
-  static const Color textDisabled = Color(0xFF5B4D78);
+  static const Color textPrimary = Color(0xFFFFFFFF);
+  static const Color textSecondary = Color(0xFF8E8E93);
+  static const Color textMuted = Color(0xFF636366);
+  static const Color textDisabled = Color(0xFF48484A);
 
   // ── Aliases ──
   static const Color primary = brandPrimary;
@@ -82,10 +82,9 @@ class AppColors {
   );
 
   static const LinearGradient screenBackground = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [Color(0xFF120A1E), Color(0xFF0A0612), Color(0xFF0D0818)],
-    stops: [0.0, 0.5, 1.0],
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [Color(0xFF000000), Color(0xFF000000)],
   );
 
   static const LinearGradient accentGradient = LinearGradient(
@@ -142,4 +141,19 @@ class AppColors {
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
   );
+
+  /// AI Buddy–style iridescent orb for the assistant FAB.
+  static const LinearGradient aiBuddyGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [
+      Color(0xFFBEF264),
+      Color(0xFF34D399),
+      Color(0xFF22D3EE),
+      Color(0xFFC084FC),
+    ],
+    stops: [0.0, 0.35, 0.65, 1.0],
+  );
+
+  static const Color aiBuddyLime = Color(0xFFBEF264);
 }

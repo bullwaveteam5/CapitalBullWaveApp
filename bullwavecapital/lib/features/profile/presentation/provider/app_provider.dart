@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class AppProvider extends ChangeNotifier {
-  bool _isDarkMode = false;
+  bool _isDarkMode = true;
   String _language = 'English';
   bool _isLoading = false;
   bool _hasCompletedOnboarding = false;

@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../../../core/theme/app_theme_extension.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/utils/formatters.dart';
+import '../../../../core/widgets/custom_app_bar.dart';
 import '../../../../core/widgets/primary_button.dart';
 import '../../data/goal_templates_catalog.dart';
 import '../widgets/goal_return_widgets.dart';
@@ -55,11 +56,8 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
   Widget build(BuildContext context) {
     final colors = context.appColors;
     return Scaffold(
-      backgroundColor: colors.background,
-      appBar: AppBar(
-        title: const Text('Start Goal Plan', style: TextStyle(fontWeight: FontWeight.w800)),
-        backgroundColor: colors.background,
-      ),
+      backgroundColor: Colors.transparent,
+      appBar: const CustomAppBar(title: 'Start Goal Plan'),
       body: Consumer<GoalPlanProvider>(
         builder: (context, provider, _) {
           final t = provider.selectedTemplate;

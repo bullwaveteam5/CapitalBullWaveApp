@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/colors.dart';
 import '../theme/typography.dart';
 import '../theme/app_theme_extension.dart';
+import '../theme/app_decorations.dart';
 import '../constants/dimensions.dart';
 import '../utils/formatters.dart';
 import 'robinhood_card.dart';
@@ -28,8 +29,10 @@ class PortfolioSummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.appColors;
 
-    return RobinhoodCard(
+    return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(AppDimensions.paddingLg),
+      decoration: AppDecorations.heroCard(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

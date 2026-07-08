@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../../../core/constants/routes.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/app_theme_extension.dart';
+import '../../../../core/widgets/custom_app_bar.dart';
 import '../provider/kyc_flow_provider.dart';
 
 /// Matches backend `kyc.constants.KYC_WRONG_INFO_REJECTION_REASON`.
@@ -23,7 +24,8 @@ class KycRejectedScreen extends StatelessWidget {
     final displayReason = apiReason.isNotEmpty ? apiReason : kycWrongInfoMessage;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('KYC Rejected')),
+      backgroundColor: Colors.transparent,
+      appBar: const CustomAppBar(title: 'KYC Rejected'),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+
 import '../../../../core/theme/app_theme_extension.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/utils/formatters.dart';
-import '../../../../core/widgets/robinhood_card.dart';
 import '../../../../models/market_index_model.dart';
 
 class MarketOverview extends StatelessWidget {
@@ -12,19 +13,25 @@ class MarketOverview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Expanded(
-              child: Text(
-                'Market Overview',
-                style: Theme.of(context).textTheme.titleLarge,
+            Text(
+              'Market Live',
+              style: GoogleFonts.inter(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                color: colors.textPrimary,
+                letterSpacing: -0.3,
               ),
             ),
+            const SizedBox(width: 8),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
                 color: AppColors.green.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(999),
@@ -33,20 +40,21 @@ class MarketOverview extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    width: 6,
-                    height: 6,
+                    width: 5,
+                    height: 5,
                     decoration: const BoxDecoration(
                       color: AppColors.green,
                       shape: BoxShape.circle,
                     ),
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 5),
                   Text(
                     'Live',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: AppColors.green,
-                          fontWeight: FontWeight.w800,
-                        ),
+                    style: GoogleFonts.inter(
+                      color: AppColors.green,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 10,
+                    ),
                   ),
                 ],
               ),
@@ -55,19 +63,16 @@ class MarketOverview extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         if (indices.isEmpty)
-          Text(
-            'Market data unavailable',
-            style: Theme.of(context).textTheme.bodySmall,
-          )
+          Text('Market data unavailable', style: Theme.of(context).textTheme.bodySmall)
         else
           SizedBox(
-            height: 118,
+            height: 88,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: indices.length,
               separatorBuilder: (_, _) => const SizedBox(width: 10),
               itemBuilder: (context, index) => SizedBox(
-                width: 148,
+                width: 130,
                 child: _MarketIndexCard(index: indices[index]),
               ),
             ),
@@ -87,38 +92,62 @@ class _MarketIndexCard extends StatelessWidget {
     final colors = context.appColors;
     final changeColor = index.isPositive ? AppColors.green : AppColors.red;
 
-    return RobinhoodCard(
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
       padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.white.withValues(alpha: 0.07) : Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.1)
+              : colors.border.withValues(alpha: 0.7),
+        ),
+        boxShadow: isDark
+            ? null
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 12,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
             index.shortName,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: colors.textMuted,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.4,
-                ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            IndexFormatter.format(index.value),
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.3,
-                ),
+            style: GoogleFonts.inter(
+              color: colors.textMuted,
+              fontWeight: FontWeight.w700,
+              fontSize: 11,
+              letterSpacing: 0.3,
+            ),
           ),
           const SizedBox(height: 4),
           Text(
-            '${IndexFormatter.formatChange(index.change)} (${IndexFormatter.formatPercent(index.changePercent)})',
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: changeColor,
-                  fontWeight: FontWeight.w700,
-                ),
+            IndexFormatter.format(index.value),
+            style: GoogleFonts.inter(
+              fontWeight: FontWeight.w800,
+              fontSize: 15,
+              color: colors.textPrimary,
+              letterSpacing: -0.3,
+            ),
+          ),
+          Text(
+            IndexFormatter.formatPercent(index.changePercent),
+            style: GoogleFonts.inter(
+              color: changeColor,
+              fontWeight: FontWeight.w700,
+              fontSize: 11,
+            ),
           ),
         ],
       ),
     );
   }
 }
+

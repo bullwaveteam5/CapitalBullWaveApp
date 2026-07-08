@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+
 import '../../../../core/constants/routes.dart';
 import '../../../fno/fno_navigation.dart';
 import '../../../../core/theme/app_decorations.dart';
@@ -39,9 +41,10 @@ class _StockMarketsScreenState extends State<StockMarketsScreen> {
     return Consumer<StockMarketProvider>(
       builder: (context, market, _) {
         final stocks = market.searchQuery.isEmpty ? market.trendingStocks : market.searchResults;
+
         return SafeArea(
           child: RefreshIndicator(
-            color: AppColors.green,
+            color: AppColors.brandCyan,
             onRefresh: market.refresh,
             child: CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
@@ -64,13 +67,14 @@ class _StockMarketsScreenState extends State<StockMarketsScreen> {
                         ],
                       ),
                       if (market.marketProvider.isNotEmpty) ...[
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 6),
                         Text(
                           'Live via ${market.marketProvider}',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: AppColors.green,
-                                fontWeight: FontWeight.w600,
-                              ),
+                          style: GoogleFonts.inter(
+                            color: AppColors.green,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                          ),
                         ),
                       ],
                       if (market.marketError != null && stocks.isEmpty) ...[
@@ -80,22 +84,33 @@ class _StockMarketsScreenState extends State<StockMarketsScreen> {
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.red),
                         ),
                       ],
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 18),
                       TextField(
                         controller: _searchController,
                         onChanged: market.setSearchQuery,
-                        decoration: AppDecorations.pillSearch(context, hint: 'Search NSE stocks...'),
+                        style: GoogleFonts.inter(
+                          color: Theme.of(context).colorScheme.onSurface,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        decoration: AppDecorations.pillSearch(
+                          context,
+                          hint: 'Search NSE stocks...',
+                        ),
                       ),
                       if (market.searchQuery.isEmpty && market.marketIndices.isNotEmpty) ...[
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 22),
                         MarketOverview(indices: market.marketIndices),
                       ],
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 22),
                       Text(
                         'Explore',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                        style: GoogleFonts.inter(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 17,
+                          letterSpacing: -0.3,
+                        ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 10),
                       ExploreFeatureGrid(
                         items: MarketsExploreShortcuts.all(
                           watchlist: () => context.push(AppRoutes.watchlist),
@@ -109,34 +124,40 @@ class _StockMarketsScreenState extends State<StockMarketsScreen> {
                           ipoCalendar: () => context.push(AppRoutes.ipoCalendar),
                         ),
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 22),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
                             market.searchQuery.isEmpty ? 'Trending Stocks' : 'Search Results',
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                            style: GoogleFonts.inter(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 17,
+                              letterSpacing: -0.3,
+                            ),
                           ),
-                          Padding(
-                            padding: const EdgeInsets.only(right: 52),
-                            child: TextButton.icon(
-                              onPressed: () => context.push(AppRoutes.watchlist),
-                              icon: const Icon(Icons.bookmark_outline_rounded, size: 18, color: AppColors.brandPink),
-                              label: const Text(
-                                'Watchlist',
-                                style: TextStyle(color: AppColors.brandPink, fontWeight: FontWeight.w700),
+                          TextButton.icon(
+                            onPressed: () => context.push(AppRoutes.watchlist),
+                            icon: const Icon(Icons.bookmark_outline_rounded, size: 18, color: AppColors.brandPink),
+                            label: Text(
+                              'Watchlist',
+                              style: GoogleFonts.inter(
+                                color: AppColors.brandPink,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
                               ),
                             ),
                           ),
                         ],
                       ),
+                      const SizedBox(height: 4),
                     ]),
                   ),
                 ),
                 if (market.isLoading && stocks.isEmpty)
                   const SliverFillRemaining(
                     hasScrollBody: false,
-                    child: Center(child: CircularProgressIndicator()),
+                    child: Center(child: CircularProgressIndicator(color: AppColors.brandCyan)),
                   )
                 else if (stocks.isEmpty)
                   SliverFillRemaining(
@@ -158,7 +179,7 @@ class _StockMarketsScreenState extends State<StockMarketsScreen> {
                       childCount: stocks.length,
                     ),
                   ),
-                const SliverPadding(padding: EdgeInsets.only(bottom: 88)),
+                const SliverPadding(padding: EdgeInsets.only(bottom: 96)),
               ],
             ),
           ),

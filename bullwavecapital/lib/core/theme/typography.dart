@@ -12,7 +12,7 @@ class AppTypography {
     double? height,
     double? letterSpacing,
   }) {
-    return GoogleFonts.plusJakartaSans(
+    return GoogleFonts.inter(
       fontSize: size,
       fontWeight: weight,
       color: color,

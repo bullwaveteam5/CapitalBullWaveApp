@@ -10,6 +10,7 @@ import '../provider/stock_market_provider.dart';
 import '../provider/stock_portfolio_provider.dart';
 import '../utils/stock_trading_flow.dart';
 import '../../../../core/utils/formatters.dart';
+import '../../../../core/widgets/custom_app_bar.dart';
 import '../../../../core/widgets/loading_card.dart';
 import '../../../../core/widgets/money_text.dart';
 import '../../../../models/stock_model.dart';
@@ -85,11 +86,8 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
       builder: (context, market, _) {
         if (_isLoading) {
           return Scaffold(
-            backgroundColor: colors.background,
-            appBar: AppBar(
-              backgroundColor: colors.background,
-              title: Text(widget.symbol),
-            ),
+            backgroundColor: Colors.transparent,
+            appBar: CustomAppBar(title: widget.symbol),
             body: const Padding(
               padding: EdgeInsets.all(20),
               child: LoadingList(itemCount: 4, itemHeight: 80),
@@ -100,11 +98,8 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
         final stock = market.getStock(widget.symbol);
         if (stock == null) {
           return Scaffold(
-            backgroundColor: colors.background,
-            appBar: AppBar(
-              backgroundColor: colors.background,
-              title: const Text('Stock'),
-            ),
+            backgroundColor: Colors.transparent,
+            appBar: const CustomAppBar(title: 'Stock'),
             body: const Center(child: Text('Stock not found')),
           );
         }
@@ -115,18 +110,9 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
         final changeColor = isPositive ? AppColors.green : AppColors.red;
 
         return Scaffold(
-          backgroundColor: colors.background,
-          appBar: AppBar(
-            backgroundColor: colors.background,
-            surfaceTintColor: Colors.transparent,
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-              onPressed: () => context.pop(),
-            ),
-            title: Text(
-              stock.symbol,
-              style: const TextStyle(fontWeight: FontWeight.w800, letterSpacing: 0.5),
-            ),
+          backgroundColor: Colors.transparent,
+          appBar: CustomAppBar(
+            title: stock.symbol,
             actions: [
               IconButton(
                 icon: Icon(

@@ -8,6 +8,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final List<Widget>? actions;
   final bool showBack;
   final VoidCallback? onBack;
+  final PreferredSizeWidget? bottom;
 
   const CustomAppBar({
     super.key,
@@ -16,10 +17,17 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.actions,
     this.showBack = true,
     this.onBack,
+    this.bottom,
   });
 
   @override
-  Size get preferredSize => Size.fromHeight(subtitle != null ? 64 : kToolbarHeight);
+  Size get preferredSize {
+    var height = subtitle != null ? 64.0 : kToolbarHeight;
+    if (bottom != null) {
+      height += bottom!.preferredSize.height;
+    }
+    return Size.fromHeight(height);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -34,13 +42,24 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       leading: showBack
           ? IconButton(
               icon: Container(
-                padding: const EdgeInsets.all(8),
+                width: 40,
+                height: 40,
                 decoration: BoxDecoration(
-                  color: colors.surfaceSecondary.withValues(alpha: 0.8),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: colors.border.withValues(alpha: 0.6)),
+                  shape: BoxShape.circle,
+                  color: isDark
+                      ? const Color(0xFF1E1E1E)
+                      : colors.surfaceSecondary.withValues(alpha: 0.8),
+                  border: Border.all(
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.08)
+                        : colors.border.withValues(alpha: 0.6),
+                  ),
                 ),
-                child: Icon(Icons.arrow_back_ios_new_rounded, size: 16, color: colors.textPrimary),
+                child: Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  size: 16,
+                  color: colors.textPrimary,
+                ),
               ),
               onPressed: onBack ?? () => Navigator.of(context).pop(),
             )
@@ -66,22 +85,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       ),
       centerTitle: true,
       actions: actions,
-      flexibleSpace: Container(
-        decoration: BoxDecoration(
-          gradient: isDark
-              ? LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    colors.surface.withValues(alpha: 0.95),
-                    colors.background.withValues(alpha: 0),
-                  ],
-                )
-              : null,
-          color: isDark ? null : colors.surface,
-          border: Border(bottom: BorderSide(color: colors.border.withValues(alpha: 0.5))),
-        ),
-      ),
+      bottom: bottom,
     );
   }
 }

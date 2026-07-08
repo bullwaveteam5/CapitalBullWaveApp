@@ -88,9 +88,10 @@ class _IconCircleButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Material(
-      color: colors.surfaceSecondary,
+      color: isDark ? const Color(0xFF1E1E1E) : colors.surfaceSecondary,
       shape: const CircleBorder(),
       child: InkWell(
         onTap: onTap,

@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/constants/routes.dart';
 import '../../../../core/theme/colors.dart';
+import '../../../../core/widgets/custom_app_bar.dart';
 import '../provider/kyc_flow_provider.dart';
 
 class _PickedPhoto {
@@ -146,7 +147,8 @@ class _KycSubmitScreenState extends State<KycSubmitScreen> {
     final kyc = context.watch<KycFlowProvider>();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Verify PAN')),
+      backgroundColor: Colors.transparent,
+      appBar: const CustomAppBar(title: 'Verify PAN'),
       body: SafeArea(
         child: Form(
           key: _formKey,

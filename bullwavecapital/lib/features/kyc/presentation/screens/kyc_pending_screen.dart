@@ -5,8 +5,10 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/constants/routes.dart';
+import '../../../../core/theme/app_decorations.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/app_theme_extension.dart';
+import '../../../../core/widgets/custom_app_bar.dart';
 import '../provider/kyc_flow_provider.dart';
 
 class KycPendingScreen extends StatefulWidget {
@@ -53,8 +55,9 @@ class _KycPendingScreenState extends State<KycPendingScreen> {
     final req = kyc.manualStatus.latestRequest;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('KYC Verification'),
+      backgroundColor: Colors.transparent,
+      appBar: CustomAppBar(
+        title: 'KYC Verification',
         actions: [
           IconButton(onPressed: _refresh, icon: const Icon(Icons.refresh_rounded)),
         ],
@@ -65,11 +68,7 @@ class _KycPendingScreenState extends State<KycPendingScreen> {
           children: [
             Container(
               padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: colors.surface,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: colors.border),
-              ),
+              decoration: AppDecorations.glassCard(context),
               child: Column(
                 children: [
                   Container(

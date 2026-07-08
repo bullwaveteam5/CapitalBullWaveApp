@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 import '../../features/kyc/presentation/provider/kyc_flow_provider.dart';
 import '../../features/stocks/presentation/provider/stock_portfolio_provider.dart';
 import '../constants/routes.dart';
-import '../widgets/app_screen_background.dart';
 import '../widgets/ai_assistant_fab.dart';
 import '../widgets/bottom_navigation.dart';
 
@@ -50,14 +49,14 @@ class MainShell extends StatelessWidget {
     final marketsLocked = !kyc.isFullyVerified;
 
     return Scaffold(
-      body: AppScreenBackground(
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            child,
-            if (!marketsLocked) const AiAssistantFab(bottom: 96),
-          ],
-        ),
+      backgroundColor: Colors.transparent,
+      extendBody: true,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          child,
+          if (!marketsLocked) const AiAssistantFab(bottom: 96),
+        ],
       ),
       bottomNavigationBar: AppBottomNavigation(
         currentIndex: _currentIndex(context),

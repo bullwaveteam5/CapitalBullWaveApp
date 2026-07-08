@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+
 import '../../../../core/constants/routes.dart';
+import '../../../../core/theme/app_decorations.dart';
 import '../../../../core/theme/app_theme_extension.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/utils/formatters.dart';
@@ -28,75 +31,87 @@ class StockListTile extends StatelessWidget {
     final market = context.watch<StockMarketProvider>();
     final inWatchlist = market.isInWatchlist(stock.symbol);
 
-    return Material(
-      color: colors.surface,
-      child: InkWell(
-        onTap: onTap ?? () => context.push('${AppRoutes.stockDetail}?symbol=${stock.symbol}'),
-        child: Container(
-          decoration: BoxDecoration(
-            border: Border(bottom: BorderSide(color: colors.border.withValues(alpha: 0.6))),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
-          child: Row(
-            children: [
-              ModernStockAvatar(symbol: stock.symbol),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap ?? () => context.push('${AppRoutes.stockDetail}?symbol=${stock.symbol}'),
+          borderRadius: BorderRadius.circular(18),
+          child: Ink(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: AppDecorations.glassCard(context),
+            child: Row(
+              children: [
+                ModernStockAvatar(symbol: stock.symbol),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        stock.symbol,
+                        style: GoogleFonts.inter(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15,
+                          color: colors.textPrimary,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                      Text(
+                        stock.name,
+                        style: GoogleFonts.inter(
+                          color: colors.textSecondary,
+                          fontSize: 12,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      stock.symbol,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: colors.textPrimary,
-                          ),
+                      IndexFormatter.format(stock.ltp),
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 15,
+                        color: colors.textPrimary,
+                      ),
                     ),
                     Text(
-                      stock.name,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      '${IndexFormatter.formatChange(stock.change)} (${IndexFormatter.formatPercent(stock.changePercent)})',
+                      style: GoogleFonts.inter(
+                        color: changeColor,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 11,
+                      ),
                     ),
                   ],
                 ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    IndexFormatter.format(stock.ltp),
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: colors.textPrimary,
-                        ),
-                  ),
-                  Text(
-                    '${IndexFormatter.formatChange(stock.change)} (${IndexFormatter.formatPercent(stock.changePercent)})',
-                    style: TextStyle(color: changeColor, fontWeight: FontWeight.w600, fontSize: 12),
+                if (showWatchlistButton) ...[
+                  const SizedBox(width: 4),
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    icon: Icon(
+                      inWatchlist ? Icons.bookmark_rounded : Icons.bookmark_outline_rounded,
+                      color: inWatchlist ? AppColors.brandPink : colors.textMuted,
+                      size: 22,
+                    ),
+                    onPressed: () async {
+                      final err = await market.toggleWatchlist(stock.symbol);
+                      if (context.mounted && err != null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(err), behavior: SnackBarBehavior.floating),
+                        );
+                      }
+                    },
                   ),
                 ],
-              ),
-              if (showWatchlistButton) ...[
-                const SizedBox(width: 4),
-                IconButton(
-                  visualDensity: VisualDensity.compact,
-                  icon: Icon(
-                    inWatchlist ? Icons.bookmark_rounded : Icons.bookmark_outline_rounded,
-                    color: inWatchlist ? AppColors.brandPink : colors.textMuted,
-                    size: 22,
-                  ),
-                  onPressed: () async {
-                    final err = await market.toggleWatchlist(stock.symbol);
-                    if (context.mounted && err != null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(err), behavior: SnackBarBehavior.floating),
-                      );
-                    }
-                  },
-                ),
               ],
-            ],
+            ),
           ),
         ),
       ),
@@ -110,27 +125,28 @@ class LivePriceBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: AppColors.green.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(6),
+        color: AppColors.green.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: AppColors.green.withValues(alpha: 0.25)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 5,
-            height: 5,
+            width: 6,
+            height: 6,
             decoration: const BoxDecoration(color: AppColors.green, shape: BoxShape.circle),
           ),
-          const SizedBox(width: 5),
+          const SizedBox(width: 6),
           Text(
             'Live',
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: AppColors.greenDark,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 11,
-                ),
+            style: GoogleFonts.inter(
+              color: AppColors.green,
+              fontWeight: FontWeight.w700,
+              fontSize: 11,
+            ),
           ),
         ],
       ),

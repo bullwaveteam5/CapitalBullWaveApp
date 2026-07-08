@@ -9,6 +9,7 @@ import '../../../../core/theme/app_theme_extension.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/app_text_field.dart';
+import '../../../../core/widgets/custom_app_bar.dart';
 import '../../../../core/widgets/custom_dialog.dart';
 import '../../../../core/widgets/primary_button.dart';
 import '../../../../models/referral_model.dart';
@@ -80,7 +81,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
     final colors = context.appColors;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Refer & Earn')),
+      appBar: const CustomAppBar(title: 'Refer & Earn'),
       body: RefreshIndicator(
         onRefresh: provider.loadData,
         child: _buildBody(context, provider, colors),

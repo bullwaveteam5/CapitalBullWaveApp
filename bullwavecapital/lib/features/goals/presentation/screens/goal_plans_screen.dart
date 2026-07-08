@@ -14,6 +14,8 @@ import '../../../../core/theme/colors.dart';
 
 import '../../../../core/utils/formatters.dart';
 
+import '../../../../core/widgets/custom_app_bar.dart';
+
 import '../../../../models/goal_plan_model.dart';
 
 import '../provider/goal_plan_provider.dart';
@@ -62,15 +64,9 @@ class _GoalPlansScreenState extends State<GoalPlansScreen> {
 
     return Scaffold(
 
-      backgroundColor: colors.background,
+      backgroundColor: Colors.transparent,
 
-      appBar: AppBar(
-
-        title: const Text('Goal Plans', style: TextStyle(fontWeight: FontWeight.w800)),
-
-        backgroundColor: colors.background,
-
-      ),
+      appBar: const CustomAppBar(title: 'Goal Plans'),
 
       body: Consumer<GoalPlanProvider>(
 

@@ -56,12 +56,17 @@ class AppDecorations {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return BoxDecoration(
-      color: color ?? c.surface,
-      borderRadius: BorderRadius.circular(premium ? 18 : 14),
+      color: color ??
+          (isDark
+              ? Colors.white.withValues(alpha: premium ? 0.08 : 0.05)
+              : c.surface),
+      borderRadius: BorderRadius.circular(premium ? 20 : 16),
       border: Border.all(
         color: premium
             ? (glowColor ?? AppColors.brandPrimary).withValues(alpha: isDark ? 0.28 : 0.18)
-            : c.border.withValues(alpha: isDark ? 0.85 : 0.7),
+            : (isDark
+                ? Colors.white.withValues(alpha: 0.1)
+                : c.border.withValues(alpha: 0.7)),
       ),
       boxShadow: glow
           ? [
@@ -72,7 +77,13 @@ class AppDecorations {
               ),
             ]
           : isDark
-              ? []
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.35),
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
               : [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.04),
@@ -103,14 +114,18 @@ class AppDecorations {
     final c = context.appColors;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return BoxDecoration(
-      color: c.surface.withValues(alpha: isDark ? 0.95 : 0.98),
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: c.border),
+      color: isDark
+          ? Colors.white.withValues(alpha: 0.06)
+          : c.surface.withValues(alpha: 0.98),
+      borderRadius: BorderRadius.circular(18),
+      border: Border.all(
+        color: isDark ? Colors.white.withValues(alpha: 0.1) : c.border,
+      ),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.06),
-          blurRadius: 12,
-          offset: const Offset(0, 2),
+          color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.06),
+          blurRadius: 16,
+          offset: const Offset(0, 4),
         ),
       ],
     );
@@ -126,15 +141,15 @@ class AppDecorations {
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       prefixIcon: Icon(Icons.search_rounded, color: c.textMuted, size: 20),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(999),
         borderSide: BorderSide(color: c.border),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(999),
         borderSide: BorderSide(color: c.border),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(999),
         borderSide: const BorderSide(color: AppColors.brandPrimary, width: 1.5),
       ),
     );

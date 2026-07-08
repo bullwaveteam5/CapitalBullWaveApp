@@ -23,7 +23,7 @@ class RobinhoodCard extends StatelessWidget {
     final content = Container(
       width: double.infinity,
       padding: padding ?? const EdgeInsets.all(AppDimensions.paddingMd),
-      decoration: AppDecorations.card(context, glow: glow, glowColor: glowColor),
+      decoration: AppDecorations.card(context, glow: glow, glowColor: glowColor, premium: true),
       child: child,
     );
 

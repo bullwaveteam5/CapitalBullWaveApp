@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/theme/app_decorations.dart';
 import '../../../../core/theme/app_theme_extension.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/utils/formatters.dart';
+import '../../../../core/widgets/custom_app_bar.dart';
 import '../../../../core/widgets/loading_card.dart';
 import '../../../../models/stock_model.dart';
 import '../provider/stock_features_provider.dart';
@@ -193,15 +193,9 @@ class _IpoCalendarScreenState extends State<IpoCalendarScreen>
     final colors = context.appColors;
 
     return Scaffold(
-      backgroundColor: colors.background,
-      appBar: AppBar(
-        backgroundColor: colors.background,
-        surfaceTintColor: Colors.transparent,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          onPressed: () => context.pop(),
-        ),
-        title: const Text('IPO Calendar', style: TextStyle(fontWeight: FontWeight.w800)),
+      backgroundColor: Colors.transparent,
+      appBar: CustomAppBar(
+        title: 'IPO Calendar',
         bottom: TabBar(
           controller: _tabs,
           isScrollable: true,

@@ -32,9 +32,9 @@ class AppTheme {
       useMaterial3: true,
       brightness: isDark ? Brightness.dark : Brightness.light,
       colorScheme: colorScheme,
-      scaffoldBackgroundColor: colors.background,
+      scaffoldBackgroundColor: isDark ? Colors.transparent : colors.background,
       textTheme: AppTypography.forBrightness(colors),
-      fontFamily: GoogleFonts.plusJakartaSans().fontFamily,
+      fontFamily: GoogleFonts.inter().fontFamily,
       extensions: [colors],
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: {
@@ -46,29 +46,33 @@ class AppTheme {
       appBarTheme: AppBarTheme(
         elevation: 0,
         centerTitle: true,
-        backgroundColor: colors.background,
+        backgroundColor: Colors.transparent,
         foregroundColor: colors.textPrimary,
         surfaceTintColor: Colors.transparent,
         titleTextStyle: AppTypography.sectionTitle(colors),
       ),
       cardTheme: CardThemeData(
         elevation: 0,
-        color: colors.surface,
+        color: isDark ? Colors.white.withValues(alpha: 0.06) : colors.surface,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppDimensions.radiusCard),
-          side: isDark ? BorderSide(color: colors.border) : BorderSide.none,
+          side: BorderSide(
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.1)
+                : colors.border,
+          ),
         ),
       ),
       listTileTheme: ListTileThemeData(
         iconColor: AppColors.brandPrimary,
         textColor: colors.textPrimary,
-        titleTextStyle: GoogleFonts.plusJakartaSans(
+        titleTextStyle: GoogleFonts.inter(
           fontSize: 15,
           fontWeight: FontWeight.w600,
           color: colors.textPrimary,
         ),
-        subtitleTextStyle: GoogleFonts.plusJakartaSans(
+        subtitleTextStyle: GoogleFonts.inter(
           fontSize: 13,
           color: colors.textSecondary,
         ),
@@ -96,7 +100,7 @@ class AppTheme {
             borderRadius: BorderRadius.circular(999),
           ),
           elevation: 0,
-          textStyle: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w700),
+          textStyle: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -111,27 +115,33 @@ class AppTheme {
             color: isDark ? colors.border : colors.textPrimary.withValues(alpha: 0.2),
             width: 1,
           ),
-          textStyle: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w600),
+          textStyle: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: colors.surfaceSecondary,
+        fillColor: isDark
+            ? Colors.white.withValues(alpha: 0.06)
+            : colors.surfaceSecondary,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: AppDimensions.paddingMd,
           vertical: AppDimensions.paddingMd,
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
-          borderSide: BorderSide(color: colors.border),
+          borderSide: BorderSide(
+            color: isDark ? Colors.white.withValues(alpha: 0.1) : colors.border,
+          ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
-          borderSide: BorderSide(color: colors.border),
+          borderSide: BorderSide(
+            color: isDark ? Colors.white.withValues(alpha: 0.1) : colors.border,
+          ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
-          borderSide: const BorderSide(color: AppColors.brandPrimary, width: 2),
+          borderSide: const BorderSide(color: AppColors.brandPrimary, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
@@ -152,7 +162,7 @@ class AppTheme {
       chipTheme: ChipThemeData(
         backgroundColor: colors.surfaceSecondary,
         selectedColor: AppColors.brandPink.withValues(alpha: 0.18),
-        labelStyle: GoogleFonts.plusJakartaSans(fontSize: 13, color: colors.textPrimary),
+        labelStyle: GoogleFonts.inter(fontSize: 13, color: colors.textPrimary),
         side: BorderSide(color: colors.border),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
       ),
@@ -160,7 +170,7 @@ class AppTheme {
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         backgroundColor: colors.surfaceSecondary,
-        contentTextStyle: GoogleFonts.plusJakartaSans(color: colors.textPrimary),
+        contentTextStyle: GoogleFonts.inter(color: colors.textPrimary),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
       splashFactory: InkRipple.splashFactory,

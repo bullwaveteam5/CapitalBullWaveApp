@@ -63,26 +63,42 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
 
         return SafeArea(
           child: RefreshIndicator(
-            color: AppColors.brandOrange,
+            color: AppColors.brandCyan,
             onRefresh: _refreshPrices,
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(AppDimensions.paddingMd),
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('Portfolio', style: Theme.of(context).textTheme.headlineLarge),
+                      Text(
+                        'Portfolio',
+                        style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
+                      ),
                       if (stockPortfolio.holdingsCount > 0)
-                        Text(
-                          '${stockPortfolio.holdingsCount} stocks',
-                          style: Theme.of(context).textTheme.bodySmall,
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: AppColors.brandPrimary.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            '${stockPortfolio.holdingsCount} stocks',
+                            style: const TextStyle(
+                              color: AppColors.brandCyan,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 11,
+                            ),
+                          ),
                         ),
                     ],
                   ),
-                  const SizedBox(height: AppDimensions.paddingMd),
+                  const SizedBox(height: 20),
                   if (stockPortfolio.error != null)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 12),
@@ -104,7 +120,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                     todayPnl: summary.dayPnl,
                     todayPnlPercent: summary.dayPnlPercent,
                   ),
-                  const SizedBox(height: AppDimensions.paddingLg),
+                  const SizedBox(height: 24),
                   SectionHeader(
                     title: 'Holdings',
                     actionLabel: hasHoldings ? 'Analytics' : null,

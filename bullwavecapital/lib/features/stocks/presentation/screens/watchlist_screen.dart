@@ -6,6 +6,7 @@ import '../../../../core/constants/routes.dart';
 import '../../../../core/theme/app_decorations.dart';
 import '../../../../core/theme/app_theme_extension.dart';
 import '../../../../core/theme/colors.dart';
+import '../../../../core/widgets/custom_app_bar.dart';
 import '../../../../core/widgets/loading_card.dart';
 import '../provider/stock_market_provider.dart';
 import '../widgets/stock_list_tile.dart';
@@ -35,15 +36,9 @@ class _WatchlistScreenState extends State<WatchlistScreen> {
     final colors = context.appColors;
 
     return Scaffold(
-      backgroundColor: colors.background,
-      appBar: AppBar(
-        backgroundColor: colors.background,
-        surfaceTintColor: Colors.transparent,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          onPressed: () => context.pop(),
-        ),
-        title: const Text('Watchlist', style: TextStyle(fontWeight: FontWeight.w800)),
+      backgroundColor: Colors.transparent,
+      appBar: CustomAppBar(
+        title: 'Watchlist',
         actions: [
           Consumer<StockMarketProvider>(
             builder: (context, market, _) {

@@ -1,15 +1,17 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+
 import '../../../../core/api/refresh_providers.dart';
 import '../../../../core/constants/routes.dart';
-import '../../../../core/theme/app_theme_extension.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/widgets/otp_box.dart';
-import '../../../../core/widgets/primary_button.dart';
 import '../../../kyc/presentation/provider/kyc_flow_provider.dart';
 import '../provider/auth_provider.dart';
+import '../widgets/premium_auth_ui.dart';
 
 class OtpScreen extends StatefulWidget {
   const OtpScreen({super.key});
@@ -103,7 +105,6 @@ class _OtpScreenState extends State<OtpScreen> {
         content: Text(auth.error ?? 'Incorrect OTP. Please try again.'),
         behavior: SnackBarBehavior.floating,
         backgroundColor: AppColors.red,
-        duration: const Duration(seconds: 5),
       ),
     );
     _otpKey.currentState?.clear();
@@ -114,18 +115,9 @@ class _OtpScreenState extends State<OtpScreen> {
     if (_secondsRemaining > 0 || _isResending) return;
 
     final auth = context.read<AuthProvider>();
-    if (auth.phoneNumber.length != 10) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Go back and enter your phone number first.'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
+    if (auth.phoneNumber.length != 10) return;
 
     setState(() => _isResending = true);
-
     final sent = await auth.sendOtp();
     if (!mounted) return;
 
@@ -139,19 +131,10 @@ class _OtpScreenState extends State<OtpScreen> {
         SnackBar(
           content: Text(
             auth.devOtp != null
-                ? 'New OTP sent. Dev code: ${auth.devOtp}'
+                ? 'New OTP: ${auth.devOtp}'
                 : 'OTP sent to +91 ${auth.phoneNumber}',
           ),
           behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 6),
-        ),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(auth.error ?? 'Failed to resend OTP'),
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: AppColors.red,
         ),
       );
     }
@@ -166,112 +149,89 @@ class _OtpScreenState extends State<OtpScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
-    final colors = context.appColors;
     final canResend = _secondsRemaining == 0 && !_isResending;
     final isBusy = auth.isLoading || _isVerifying;
     final canVerify = _otp.replaceAll(RegExp(r'\D'), '').length == 6 && !isBusy;
 
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          onPressed: isBusy ? null : () => context.pop(),
-        ),
+    return PremiumAuthShell(
+      glowPrimary: const Color(0xFF22D3EE),
+      glowSecondary: const Color(0xFF2DD4BF),
+      topBar: const PremiumBrandHeader(),
+      bottomBar: PremiumAuthBottomBar(
+        backEnabled: !isBusy,
+        onBack: () => context.pop(),
+        onNext: canVerify ? _verifyOtp : () {},
+        isLoading: isBusy,
+        nextIcon: Icons.check_rounded,
       ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Enter OTP',
-                style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                      fontWeight: FontWeight.w800,
+      child: Column(
+        children: [
+          const Spacer(),
+          PremiumAuthHero(
+            pill: 'Verification',
+            headline: 'ENTER\nOTP',
+            body: 'We sent a 6-digit code to +91 ${_maskedPhone(auth.phoneNumber)}',
+            showLogo: false,
+            belowBody: Column(
+              children: [
+                if (auth.devOtp != null)
+                  Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.green.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.green.withValues(alpha: 0.35)),
                     ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                'We sent a 6-digit code to',
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: colors.textSecondary,
+                    child: Text(
+                      'Dev OTP: ${auth.devOtp}',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.greenSoft,
+                        letterSpacing: 3,
+                      ),
                     ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '+91 ${_maskedPhone(auth.phoneNumber)}',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-              ),
-              const SizedBox(height: 32),
-              if (auth.devOtp != null)
-                Container(
-                  width: double.infinity,
-                  margin: const EdgeInsets.only(bottom: 16),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppColors.green.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.green.withValues(alpha: 0.4)),
                   ),
-                  child: Text(
-                    'Latest OTP: ${auth.devOtp}',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.green,
-                      letterSpacing: 2,
+                PremiumGlassField(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                    child: ModernOtpInput(
+                      key: _otpKey,
+                      enabled: !isBusy,
+                      onChanged: (value) => setState(() => _otp = value),
+                      onCompleted: (_) {
+                        if (!_isVerifying && !auth.isLoading) _verifyOtp();
+                      },
                     ),
                   ),
                 ),
-              ModernOtpInput(
-                key: _otpKey,
-                enabled: !isBusy,
-                onChanged: (value) => setState(() => _otp = value),
-                onCompleted: (_) {
-                  if (!_isVerifying && !auth.isLoading) {
-                    _verifyOtp();
-                  }
-                },
-              ),
-              const SizedBox(height: 24),
-              Center(
-                child: canResend
+                const SizedBox(height: 20),
+                canResend
                     ? TextButton(
                         onPressed: _resendOtp,
                         child: Text(
                           _isResending ? 'Sending...' : 'Resend OTP',
-                          style: const TextStyle(
-                            color: AppColors.green,
+                          style: GoogleFonts.inter(
+                            color: AppColors.brandCyan,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
                       )
                     : Text(
-                        'Resend OTP in 0:${_secondsRemaining.toString().padLeft(2, '0')}',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: colors.textMuted,
-                              fontWeight: FontWeight.w600,
-                            ),
+                        'Resend in 0:${_secondsRemaining.toString().padLeft(2, '0')}',
+                        style: GoogleFonts.inter(
+                          color: Colors.white.withValues(alpha: 0.4),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
                       ),
-              ),
-              const Spacer(),
-              PrimaryButton(
-                label: 'Verify & Continue',
-                isLoading: isBusy,
-                onPressed: canVerify ? _verifyOtp : null,
-              ),
-              const SizedBox(height: 8),
-              Center(
-                child: Text(
-                  'Tip: Paste the full 6-digit OTP from SMS or dev banner',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
+          const Spacer(flex: 2),
+        ],
       ),
     );
   }

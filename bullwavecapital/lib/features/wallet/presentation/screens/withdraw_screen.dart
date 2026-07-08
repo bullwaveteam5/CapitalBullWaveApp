@@ -84,6 +84,7 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
                         final result = await kyc.withdraw(amount);
                         if (!context.mounted || result == null) return;
                         await wallet.loadData();
+                        if (!context.mounted) return;
                         setState(() => _payoutStatus = result.status);
                         await CustomDialog.showSuccess(
                           context,

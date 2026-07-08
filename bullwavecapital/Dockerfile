@@ -1,7 +1,8 @@
 # ── Stage 1: build Flutter web ──
 # Project needs Flutter >=3.44 / Dart >=3.12 (see pubspec.lock).
-# cirruslabs/flutter:stable is frozen at ~3.41 — use the community fork instead.
-FROM ghcr.io/adrianjagielak/flutter:3.44.1 AS build
+# cirruslabs/flutter:stable is frozen at ~3.41 — use a newer Flutter image instead.
+# Flutter 3.44.1 ships with Dart 3.12.1, but this project requires >=3.12.2.
+FROM ghcr.io/adrianjagielak/flutter:3.44.5 AS build
 
 WORKDIR /app
 

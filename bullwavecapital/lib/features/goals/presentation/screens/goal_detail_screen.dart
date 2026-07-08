@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../../core/theme/app_theme_extension.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/utils/formatters.dart';
+import '../../../../core/widgets/custom_app_bar.dart';
 import '../../../../core/widgets/primary_button.dart';
 import '../../../../models/goal_plan_model.dart';
 import '../../../kyc/presentation/provider/kyc_flow_provider.dart';
@@ -71,11 +72,8 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
   Widget build(BuildContext context) {
     final colors = context.appColors;
     return Scaffold(
-      backgroundColor: colors.background,
-      appBar: AppBar(
-        title: const Text('Goal Details', style: TextStyle(fontWeight: FontWeight.w800)),
-        backgroundColor: colors.background,
-      ),
+      backgroundColor: Colors.transparent,
+      appBar: const CustomAppBar(title: 'Goal Details'),
       body: Consumer<GoalPlanProvider>(
         builder: (context, provider, _) {
           final goal = _goal(provider);

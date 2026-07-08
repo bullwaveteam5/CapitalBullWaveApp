@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../../../core/constants/routes.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/utils/formatters.dart';
+import '../../../../core/widgets/custom_app_bar.dart';
 import '../../models/fno_status_model.dart';
 import '../provider/fno_flow_provider.dart';
 
@@ -67,12 +68,9 @@ class _FnoVerificationScreenState extends State<FnoVerificationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        title: const Text('F&O Verification', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
-        centerTitle: true,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
+      backgroundColor: Colors.transparent,
+      appBar: CustomAppBar(
+        title: 'F&O Verification',
         actions: [
           Consumer<FnoFlowProvider>(
             builder: (context, fno, _) => IconButton(

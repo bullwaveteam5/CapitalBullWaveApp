@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import '../../../../core/constants/dimensions.dart';
+
 import '../../../../core/constants/routes.dart';
-import '../../../../core/theme/app_theme_extension.dart';
 import '../../../../core/theme/colors.dart';
-import '../../../../core/widgets/app_brand_logo.dart';
-import '../../../../core/widgets/primary_button.dart';
 import '../provider/auth_provider.dart';
+import '../widgets/premium_auth_ui.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -34,159 +33,184 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  Future<void> _continue() async {
+    if (!_formKey.currentState!.validate()) return;
+    final auth = context.read<AuthProvider>();
+    if (!auth.termsAccepted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please accept terms'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    auth.setPhoneNumber(_phoneController.text);
+    final router = GoRouter.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final success = await auth.sendOtp();
+    if (!mounted) return;
+
+    if (success) {
+      if (auth.devOtp != null) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('Dev OTP: ${auth.devOtp}'),
+            duration: const Duration(seconds: 8),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      router.push(AppRoutes.otp);
+    } else {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(auth.error ?? 'Failed to send OTP'),
+          backgroundColor: AppColors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
 
-    return Scaffold(
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppDimensions.paddingLg),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 40),
-                Center(
-                  child: Hero(
-                    tag: 'logo',
-                    child: AppBrandLogo(size: 80, showShadow: true),
-                  ),
-                ),
-                const SizedBox(height: 36),
-                Text(
-                  'Welcome back',
-                  style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        color: context.appColors.textPrimary,
-                      ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Enter your phone number to continue',
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: context.appColors.textSecondary,
-                      ),
-                ),
-                const SizedBox(height: AppDimensions.paddingXl),
-                Text('Phone Number', style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: AppDimensions.paddingSm),
-                TextFormField(
+    return PremiumAuthShell(
+      glowPrimary: const Color(0xFF9333EA),
+      glowSecondary: const Color(0xFFEC4899),
+      topBar: PremiumBrandHeader(
+        trailing: TextButton(
+          onPressed: () => context.go(AppRoutes.onboarding),
+          child: Text(
+            'Back',
+            style: GoogleFonts.inter(
+              color: Colors.white.withValues(alpha: 0.45),
+              fontWeight: FontWeight.w500,
+              fontSize: 14,
+            ),
+          ),
+        ),
+      ),
+      bottomBar: PremiumAuthBottomBar(
+        showBack: true,
+        backEnabled: true,
+        onBack: () => context.go(AppRoutes.onboarding),
+        onNext: _continue,
+        isLoading: auth.isLoading,
+      ),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          children: [
+            const Spacer(),
+            PremiumAuthHero(
+              pill: 'Sign in',
+              headline: 'WELCOME\nBACK',
+              body: 'Enter your mobile number. We\'ll send a secure 6-digit OTP to verify you.',
+              showLogo: true,
+              belowBody: PremiumGlassField(
+                child: TextFormField(
                   controller: _phoneController,
                   keyboardType: TextInputType.phone,
-                  textInputAction: TextInputAction.done,
-                  autofillHints: const [AutofillHints.telephoneNumber],
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 2,
+                  ),
                   inputFormatters: [
                     FilteringTextInputFormatter.digitsOnly,
                     LengthLimitingTextInputFormatter(10),
                   ],
                   validator: (value) {
                     if (value == null || value.length != 10) {
-                      return 'Enter a valid 10 digit mobile number';
+                      return 'Enter a valid 10 digit number';
                     }
                     return null;
                   },
                   decoration: InputDecoration(
-                    hintText: 'Enter 10 digit mobile number',
-                    prefixIcon: Container(
-                      width: 70,
-                      alignment: Alignment.center,
+                    hintText: '9876543210',
+                    hintStyle: GoogleFonts.inter(
+                      color: Colors.white.withValues(alpha: 0.25),
+                      fontSize: 20,
+                      letterSpacing: 2,
+                    ),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+                    prefixIcon: Padding(
+                      padding: const EdgeInsets.only(left: 16, right: 8),
                       child: Text(
                         '+91',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w600,
-                            ),
+                        style: GoogleFonts.inter(
+                          color: AppColors.brandCyan,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 16,
+                        ),
                       ),
                     ),
-                    prefixIconConstraints: const BoxConstraints(minWidth: 56),
+                    prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
                   ),
                 ),
-                const SizedBox(height: AppDimensions.paddingMd),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Checkbox(
+              ),
+            ),
+            const SizedBox(height: 24),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 28),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: Checkbox(
                       value: auth.termsAccepted,
                       onChanged: (v) => auth.setTermsAccepted(v ?? false),
+                      side: BorderSide(color: Colors.white.withValues(alpha: 0.3)),
+                      activeColor: AppColors.brandPrimary,
                     ),
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => auth.setTermsAccepted(!auth.termsAccepted),
-                        child: Padding(
-                          padding: const EdgeInsets.only(top: 12),
-                          child: Text.rich(
-                            TextSpan(
-                              text: 'I agree to the ',
-                              style: Theme.of(context).textTheme.bodySmall,
-                              children: const [
-                                TextSpan(
-                                  text: 'Terms & Conditions',
-                                  style: TextStyle(
-                                    color: AppColors.primary,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                TextSpan(text: ' and '),
-                                TextSpan(
-                                  text: 'Privacy Policy',
-                                  style: TextStyle(
-                                    color: AppColors.primary,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => auth.setTermsAccepted(!auth.termsAccepted),
+                      child: Text.rich(
+                        TextSpan(
+                          text: 'I agree to the ',
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            color: Colors.white.withValues(alpha: 0.5),
+                            height: 1.5,
                           ),
+                          children: const [
+                            TextSpan(
+                              text: 'Terms & Conditions',
+                              style: TextStyle(
+                                color: AppColors.brandCyan,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            TextSpan(text: ' and '),
+                            TextSpan(
+                              text: 'Privacy Policy',
+                              style: TextStyle(
+                                color: AppColors.brandCyan,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: AppDimensions.paddingLg),
-                PrimaryButton(
-                  label: 'Continue',
-                  isLoading: auth.isLoading,
-                  onPressed: () async {
-                    if (!_formKey.currentState!.validate()) return;
-                    if (!auth.termsAccepted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Please accept terms')),
-                      );
-                      return;
-                    }
-                    auth.setPhoneNumber(_phoneController.text);
-                    final router = GoRouter.of(context);
-                    final messenger = ScaffoldMessenger.of(context);
-                    final success = await auth.sendOtp();
-                    if (!mounted) return;
-                    if (success) {
-                      if (auth.devOtp != null) {
-                        messenger.showSnackBar(
-                          SnackBar(
-                            content: Text('Dev OTP: ${auth.devOtp} (also in Django terminal)'),
-                            duration: const Duration(seconds: 8),
-                            behavior: SnackBarBehavior.floating,
-                          ),
-                        );
-                      }
-                      router.push(AppRoutes.otp);
-                    } else {
-                      messenger.showSnackBar(
-                        SnackBar(
-                          content: Text(auth.error ?? 'Failed to send OTP'),
-                          backgroundColor: AppColors.red,
-                          behavior: SnackBarBehavior.floating,
-                          duration: const Duration(seconds: 6),
-                        ),
-                      );
-                    }
-                  },
-                ),
-              ],
+                  ),
+                ],
+              ),
             ),
-          ),
+            const Spacer(flex: 2),
+          ],
         ),
       ),
     );

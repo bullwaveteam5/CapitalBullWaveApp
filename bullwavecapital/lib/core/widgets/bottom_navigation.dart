@@ -33,31 +33,36 @@ class AppBottomNavigation extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(999),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+          filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
           child: Container(
             decoration: BoxDecoration(
-              color: colors.surface.withValues(alpha: isDark ? 0.88 : 0.94),
-              borderRadius: BorderRadius.circular(28),
+              color: isDark
+                  ? const Color(0xFF141414).withValues(alpha: 0.92)
+                  : colors.surface.withValues(alpha: 0.94),
+              borderRadius: BorderRadius.circular(999),
               border: Border.all(
-                color: AppColors.brandPrimary.withValues(alpha: isDark ? 0.25 : 0.12),
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.08)
+                    : AppColors.brandPrimary.withValues(alpha: 0.12),
               ),
               boxShadow: [
-                BoxShadow(
-                  color: AppColors.brandPrimary.withValues(alpha: isDark ? 0.2 : 0.08),
-                  blurRadius: 24,
-                  offset: const Offset(0, 8),
-                ),
+                if (isDark)
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.45),
+                    blurRadius: 24,
+                    offset: const Offset(0, 8),
+                  ),
               ],
             ),
             child: NavigationBar(
-              height: 68,
+              height: 64,
               selectedIndex: currentIndex,
               onDestinationSelected: onTap,
               backgroundColor: Colors.transparent,
               elevation: 0,
-              indicatorColor: AppColors.brandPrimary.withValues(alpha: 0.18),
+              indicatorColor: AppColors.brandPrimary.withValues(alpha: 0.22),
               surfaceTintColor: Colors.transparent,
               labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
               animationDuration: const Duration(milliseconds: 250),
